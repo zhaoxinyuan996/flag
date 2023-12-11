@@ -1,7 +1,8 @@
 from flask import Flask
 from util.config import uri
 from util.database import db
-from . import test
+from .util import init
+from . import test, user
 
 
 def create_app() -> Flask:
@@ -9,19 +10,17 @@ def create_app() -> Flask:
     _app.config['SQLALCHEMY_DATABASE_URI'] = uri
     _app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     _app.config['SQLALCHEMY_POOL_SIZE'] = 100  # 连接池大小
-    _app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # 事务自动提交
+    # _app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # 事务自动提交
     # _app.config['SQLALCHEMY_ECHO'] = True
     return _app
 
 
-
-
-
 app = create_app()
+# 注册蓝图
 app.register_blueprint(test.bp)
-
+app.register_blueprint(user.bp)
 db.init_app(app)
-print(app.url_map)
+init(app)
 
 
 if __name__ == '__main__':

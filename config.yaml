@@ -3,11 +3,21 @@ env:
   dev
 log_level:
   INFO
+language:
+  zh
 web:
   ip: "0.0.0.0"
   port: 5000
 db:
   dev:
+    host: "121.40.49.158"
+    port: 5432
+    db_name: flag_test
+    user: postgres
+    passwd: awesomezxy
+    max_connection_num: 100
+    max_overflow: 50
+  prod:
     host: "121.40.49.158"
     port: 5432
     db_name: flag_test

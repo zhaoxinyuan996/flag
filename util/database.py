@@ -25,6 +25,7 @@ class SQLAlchemy(_SQLAlchemy):
     def execute(self, sql: str) -> Optional[Tuple[RMKeyView, Any]]:
         log.info(sql)
         response = self.session.execute(text(sql))
+        self.session.commit()
         if response.returns_rows:
             records = response.fetchall()
             log.info(str(records))
@@ -36,13 +37,16 @@ db = SQLAlchemy()
 
 
 def wrap(self, f: Callable, *args, **kwargs) -> Any:
+    """装饰器，如果dao方法声明了返回值，则按照返回值格式化"""
     if ret := getattr(f, '__annotations__').get('return', None):
         resp = f(self, *args, **kwargs)
         model, entry = resp
         return build_model(ret, model, entry)
+    f(self, *args, **kwargs)
     return None
 
 
+_ele = {int, float, str}
 _builtins = {dict, list, set, int, float, str}
 
 
@@ -64,6 +68,8 @@ def build_model(t, keys, struct):
             return struct
     if keys is None:
         return t(**struct)
+    if t in _ele:
+        return struct[0][0]
     return t(**dict(zip(keys, struct)))
 
 
