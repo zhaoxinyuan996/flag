@@ -11,6 +11,8 @@ uri = 'postgresql://{}:{}@{}:{}/{}'.format(
         config['db'][config['env']]['port'],
         config['db'][config['env']]['db_name']
     )
+dev = config['db'][config['env']] == 'dev'
+
 
 if __name__ == '__main__':
     print(config)

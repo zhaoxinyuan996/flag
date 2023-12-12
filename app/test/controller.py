@@ -13,4 +13,5 @@ def bp_test():
     print(111, parse(Test))
     res = dao.test()
     print(res[0].dict())
+    raise
     return str(res)
