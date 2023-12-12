@@ -1,24 +1,44 @@
+from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from app.util import Model
 
 
-class User(BaseModel):
+class User(Model):
     id: Optional[int]
 
+    nickname: Optional[str]
     username: Optional[str]
     password: Optional[str]
     phone: Optional[int]
 
-    email: Optional[str]
     wechat_id: Optional[str]
     google_id: Optional[str]
     apple_id: Optional[str]
 
     signature: Optional[str]
-    head_uri: Optional[str]
-    background_url: Optional[str]
+    profile_picture: Optional[str]
+    background_picture: Optional[str]
+
+    create_time: Optional[datetime]
+    vip_deadline: Optional[datetime]
 
 
-class SignUp0d1(BaseModel):
+class SignUpIn(User):
     username: Optional[str]
     password: Optional[str]
+
+
+class UserId(User):
+    id: int
+
+
+class SetUserNickname(User):
+    nickname: str
+
+
+class SetUserSignature(User):
+    signature: str
+
+
+if __name__ == '__main__':
+    print(User('id', **{'id': 1}).model_dump(include={'id'}))
