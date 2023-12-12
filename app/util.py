@@ -78,4 +78,3 @@ class Model(BaseModel):
         kw.update(kwargs)
         [kw.pop(i) for i in args if kw[i] is None]
         super().__init__(**kw)
-
