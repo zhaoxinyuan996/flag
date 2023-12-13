@@ -10,6 +10,7 @@ class User(Model):
     username: Optional[str]
     password: Optional[str]
     phone: Optional[int]
+    sex: Optional[int]
 
     wechat_id: Optional[str]
     google_id: Optional[str]
@@ -21,6 +22,7 @@ class User(Model):
 
     create_time: Optional[datetime]
     vip_deadline: Optional[datetime]
+    block_deadline: Optional[datetime]
 
 
 class SignUpIn(User):

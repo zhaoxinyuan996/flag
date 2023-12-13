@@ -1,6 +1,6 @@
 """web的一些注入解析等小功能"""
 import logging
-import os.path
+from enum import Enum, EnumMeta
 from datetime import datetime
 from functools import wraps
 from typing import Any, Optional
@@ -58,8 +58,8 @@ def get_request_list(body) -> dict:
     """同名的参数key用这个按照原样取出来"""
     d = {}
     for k in body.keys():
-        l = body.getlist(k)
-        d[k] = l if len(l) > 1 else l[0]
+        lis = body.getlist(k)
+        d[k] = lis if len(lis) > 1 else lis[0]
     return d
 
 
@@ -72,10 +72,23 @@ class JSONProvider(DefaultJSONProvider):
 
 
 class Model(BaseModel):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         cls = type(self)
         base_cls = cls if cls.__base__ is Model else cls.__bases__[-1]
         kw = {k: None for k in base_cls.__annotations__}
         kw.update(kwargs)
-        [kw.pop(i) for i in args if kw[i] is None]
+        # [kw.pop(i) for i in args if kw[i] is None]
         super().__init__(**kw)
+
+    def check(self, *args):
+        for a in args:
+            assert getattr(self, a)
+
+
+class InEnumMeta(EnumMeta):
+    def __contains__(cls, member):
+        return member in cls._value2member_map_
+
+
+class InEnum(Enum, metaclass=EnumMeta):
+    ...

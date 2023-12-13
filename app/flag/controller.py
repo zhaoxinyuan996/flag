@@ -5,7 +5,7 @@ from app import message
 from app.flag.dao import dao
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity
-from app.constants import UserLevel, flag_picture_size, flag_picture_folder
+from app.constants import UserLevel, flag_picture_size
 from app.user.controller import get_user_level
 from app.user.dao import dao as user_dao
 from app.flag.typedef import Flag, AddFlag
@@ -46,7 +46,7 @@ def add():
             flag.id = dao.add(flag)
             assert flag.id
 
-            pic_folder = os.path.join(flag_picture_folder, str(flag.id))
+            # pic_folder = os.path.join(flag_picture_folder, str(flag.id))
             if not os.path.exists(pic_folder):
                 os.mkdir(pic_folder)
 

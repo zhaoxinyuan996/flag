@@ -3,25 +3,29 @@ import re
 from sqlalchemy import exc
 from app.user.dao import dao
 from datetime import datetime
-from flask import Blueprint, request, send_file
+from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
-from app.constants import message, allow_picture_type, user_picture_size, UserLevel, user_picture_folder
+from app.constants import message, allow_picture_type, user_picture_size, UserLevel, FileType
 from app.user.typedef import SignUpIn, SetUserNickname, SetUserSignature, UserId
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
+from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
 
 
-pattern = re.compile(r'.*(?=.{6,})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
+username_pattern = re.compile(r'^[a-zA-Z0-9_-]{4,16}$')
+password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 
 
 @bp.route('/sign-up', methods=['post'])
 @args_parse(SignUpIn)
 def sign_up(user: SignUpIn):
     # 密码强度，//密码强度正则，最少6位，包括至少1个大写字母，1个小写字母，1个数字
-    if not pattern.match(user.password):
+    if len(user.username) > 16 or not username_pattern.match(user.username):
+        return resp(message.user_sign_up_username_weak, -1)
+    if len(user.password) > 16 or not password_pattern.match(user.password):
         return resp(message.user_sign_up_password_weak, -1)
 
     user.password = generate_password_hash(user.password, method='pbkdf2:sha256')
@@ -47,11 +51,27 @@ def sign_in(user: SignUpIn):
         return resp(message.user_sign_in_password_error, -1)
 
 
+@bp.route('/refresh-jwt', methods=['post'])
+@custom_jwt()
+def refresh_kwt():
+    access_token = create_access_token(identity=get_jwt_identity())
+    return resp(message.user_sign_in_success, access_token=access_token)
+
+
 @bp.route('/user-info', methods=['post'])
 @custom_jwt()
 def user_info():
-    res = dao.user_info(get_jwt_identity())
-    return resp(res.model_dump(include={'id', 'nickname', 'username', 'signature', 'vip_deadline'}))
+    # 查看别人的信息
+    if request.data:
+        user_id = int(request.json['id'])
+        res = dao.user_info(user_id)
+    # 查看自己的信息
+    else:
+        res = dao.user_info(get_jwt_identity())
+    if not res:
+        return resp(message.user_sign_in_not_exist, -1)
+    return resp(res.model_dump(include={
+        'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline', 'block_deadline'}))
 
 
 @bp.route('/set-profile-picture', methods=['post'])
@@ -59,14 +79,16 @@ def user_info():
 def set_profile_picture():
     """设置头像"""
     user_id = get_jwt_identity()
+    level = get_user_level()
     suffix = request.files['pic'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
         return resp(message.user_picture_format_error + str(allow_picture_type), -1)
     b = request.files['pic'].stream.read()
     if len(b) > user_picture_size:
         return resp(message.too_large, -1)
-    with open(os.path.join(user_picture_folder, f'{user_id}-profile-picture'), 'wb') as f:
-        f.write(b)
+    file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, level == UserLevel.vip)
+    url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
+    dao.set_profile_picture(user_id, url)
     return resp(message.success)
 
 
@@ -74,10 +96,8 @@ def set_profile_picture():
 @custom_jwt()
 def get_profile_picture():
     """获取头像"""
-    path = os.path.join(user_picture_folder, f'{get_jwt_identity()}-profile-picture')
-    if os.path.exists(path):
-        return send_file(path)
-    return ''
+    url = file_minio.get_file_url(FileType.head_pic, str(get_jwt_identity()), thumbnail=False)
+    return resp(message.success, url=url)
 
 
 @bp.route('/set-nickname', methods=['post'])
@@ -85,7 +105,7 @@ def get_profile_picture():
 @custom_jwt()
 def set_nickname(user_nickname: SetUserNickname):
     """设置昵称"""
-    if len(user_nickname.nickname) > 20:
+    if len(user_nickname.nickname) > 16:
         return resp(message.too_long, -1)
     dao.set_user_nickname(get_jwt_identity(), user_nickname.nickname)
     return resp(message.success)
@@ -96,7 +116,7 @@ def set_nickname(user_nickname: SetUserNickname):
 @custom_jwt()
 def set_signature(user_signature: SetUserSignature):
     """设置签名"""
-    if len(user_signature.signature) > 200:
+    if len(user_signature.signature) > 50:
         return resp(message.too_long, -1)
     dao.set_user_signature(get_jwt_identity(), user_signature.signature)
     return resp(message.success)
@@ -128,7 +148,7 @@ def follow_remove(user: UserId):
 def follow_star():
     """我的关注"""
     stars = dao.follow_star(get_jwt_identity())
-    return resp([i.model_dump(include={'nickname', 'username', 'signature'}) for i in stars])
+    return resp({'data': [i.model_dump(include={'nickname', 'username', 'signature'}) for i in stars]})
 
 
 @bp.route('/follow-fans', methods=['post'])
@@ -136,10 +156,18 @@ def follow_star():
 def follow_fans():
     """我的粉丝"""
     fans = dao.follow_fans(get_jwt_identity())
-    return resp([i.model_dump(include={'nickname', 'username', 'signature'}) for i in fans])
+    return resp({'data': [i.model_dump(include={'nickname', 'username', 'signature'}) for i in fans]})
 
 
-def get_user_level() -> int:
-    if dao.get_level(get_jwt_identity()) > datetime.now():
-        return UserLevel.vip
-    return UserLevel.normal
+def get_user_level() -> UserLevel:
+    """获取用户级别，后面用redis存"""
+    user_id = get_jwt_identity()
+    user = dao.get_level(user_id)
+    if user.block_deadline > datetime.now():
+        level = UserLevel.block
+    elif user.vip_deadline > datetime.now():
+        level = UserLevel.vip
+    else:
+        level = UserLevel.normal
+    g.user_level = level
+    return level

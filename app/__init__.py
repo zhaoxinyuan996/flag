@@ -24,13 +24,15 @@ def init(_app: Flask):
 
     @_app.after_request
     def after(response: Response):
+        # 基于请求的自动提交
+        db.session.commit()
         return response
 
     @_app.errorhandler(Exception)
     def error(e: BaseException):
         log.exception(e)
         if dev:
-            return resp(f'{e}', ErrorCode.base_error), getattr(e, 'code', 500)
+            return resp(str(e), ErrorCode.base_error), getattr(e, 'code', 500)
         else:
             return resp(message.system_error, ErrorCode.base_error), getattr(e, 'code', 500)
 
@@ -40,7 +42,7 @@ def create_app() -> Flask:
     _app.config['SQLALCHEMY_DATABASE_URI'] = uri
     _app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     _app.config['SQLALCHEMY_POOL_SIZE'] = 100  # 连接池大小
-    _app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # 事务自动提交
+    # _app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # flask2.3被移除
     # _app.config['SQLALCHEMY_ECHO'] = True
     _app.config["JWT_SECRET_KEY"] = "yes?"  # 设置 jwt 的秘钥
     _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=9999)

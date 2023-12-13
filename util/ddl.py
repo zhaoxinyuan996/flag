@@ -5,12 +5,13 @@ create table test (f1 int, f2 text, f3 int[], f4 text[], f5 json);
 # 用户表
 d2 = '''
 create table users (
-id serial, 
+id serial primary key, 
 
 nickname text,
-username text primary key not null, 
+username text  not null, 
 password text not null,
 phone int,
+sex int,
 
 wechat_id text,
 google_id text,
@@ -21,7 +22,9 @@ profile_picture text,
 background_picture text,
 
 create_time timestamp not null,
-vip_deadline timestamp
+vip_deadline timestamp,
+block_deadline timestamp,
+UNIQUE(username)
 );
 '''
 
@@ -45,7 +48,7 @@ id serial primary key,
 user_id int not null,
 location point not null,
 content text,
-level int,
+type int,
 is_open int not null,
 create_time timestamp not null,
 update_time timestamp not null,
@@ -54,6 +57,8 @@ has_picture int not null
 '''
 
 d6 = '''
+CREATE INDEX type_index ON flag(type);
+CREATE INDEX is_open_index ON flag(is_open);
 CREATE INDEX user_id_index ON flag(user_id);
 CREATE INDEX flag_index ON flag USING GIST (location);
 '''

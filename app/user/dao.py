@@ -6,18 +6,22 @@ from util.database import Dao
 
 class UserDao(Dao):
     def sign_up(self, username: str, password: str) -> int:
-        sql = ('insert into users (username, password, create_time, vip_deadline) '
-               'values(:username, :password, current_timestamp, :infinity) returning id')
-        return self.execute(sql, username=username, password=password, infinity='infinity')
+        sql = ('insert into users (username, password, create_time, vip_deadline, block_deadline) '
+               "values(:username, :password, current_timestamp, 'infinity', '-infinity') returning id")
+        return self.execute(sql, username=username, password=password)
 
     def sign_in(self, username: str) -> Optional[Tuple[int, str]]:
         sql = 'select id, password from users where username=:username'
         return self.execute(sql, username=username)
 
-    def user_info(self, user_id: int) -> User:
-        sql = ('select id, username, nickname, signature, vip_deadline '
+    def user_info(self, user_id: int) -> Optional[User]:
+        sql = ('select id, username, nickname, profile_picture, signature, vip_deadline, block_deadline '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
+
+    def set_profile_picture(self, user_id: int, url: str):
+        sql = 'update users set profile_picture=:url where id=:user_id'
+        return self.execute(sql, user_id=user_id, url=url)
 
     def set_user_nickname(self, user_id: int, nickname: str):
         sql = 'update users set nickname=:nickname where id=:user_id'
@@ -45,8 +49,8 @@ class UserDao(Dao):
                'on f.fans_id=u.id where f.star_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
-    def get_level(self, user_id: int) -> datetime:
-        sql = 'select vip_deadline from users where id=:user_id'
+    def get_level(self, user_id: int) -> User:
+        sql = 'select vip_deadline, block_deadline from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
 

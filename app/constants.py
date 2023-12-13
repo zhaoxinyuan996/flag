@@ -1,24 +1,34 @@
-import os
-
 from flask import g
+from app.util import InEnum
 
 allow_picture_type = ('jpg', 'png', 'gif')
-user_picture_size = 1048576
-flag_picture_size = 10485760
-
-_static_folder = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, 'static'))
-user_picture_folder = os.path.join(_static_folder, 'user_picture')
-flag_picture_folder = os.path.join(_static_folder, 'flag_picture')
+# 用户头像限制1m
+user_picture_size = 1024 * 1024
+# flag图片单张大小限制5m
+flag_picture_size = 5 * 1024 * 1024
+# 头像，如果小于这个值，就不做缩略图
+user_picture_thumbnail_size = 50 * 1024
+# flag
+flag_picture_thumbnail_size = 100 * 1024
 
 
 class ErrorCode:
     base_error = -255
 
 
-class UserLevel:
-    violation = -1
+class FileType(InEnum):
+    head_pic = 'head-pic'
+    flag_pic = 'flag-pic'
+
+
+class UserLevel(InEnum):
+    block = -1
     normal = 0
     vip = 1
+
+
+class FlagType(InEnum):
+    init = 0  # 初始
 
 
 class Message:
@@ -28,6 +38,10 @@ class Message:
     user_sign_up_success = {
         'zh': '注册成功',
         'en': 'sign up success'
+    }
+    user_sign_up_username_weak = {
+        'zh': '用户名不符合规范',
+        'en': 'username does not comply with regulations'
     }
     user_sign_up_password_weak = {
         'zh': '密码强度不足',
