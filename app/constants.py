@@ -1,11 +1,24 @@
+import os
+
 from flask import g
 
 allow_picture_type = ('jpg', 'png', 'gif')
-picture_type_size = 1048576
+user_picture_size = 1048576
+flag_picture_size = 10485760
+
+_static_folder = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, 'static'))
+user_picture_folder = os.path.join(_static_folder, 'user_picture')
+flag_picture_folder = os.path.join(_static_folder, 'flag_picture')
 
 
 class ErrorCode:
     base_error = -255
+
+
+class UserLevel:
+    violation = -1
+    normal = 0
+    vip = 1
 
 
 class Message:
@@ -51,6 +64,10 @@ class Message:
     success = {
         'zh': '成功',
         'en': 'success'
+    }
+    blocked_user = {
+        'zh': '你已被锁定',
+        'en': 'you have been locked'
     }
     system_error = {
         'zh': '系统错误',

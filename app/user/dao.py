@@ -1,12 +1,13 @@
-from typing import Tuple, Optional
+from datetime import datetime
+from typing import Tuple, Optional, List
 from app.user.typedef import User
 from util.database import Dao
 
 
 class UserDao(Dao):
     def sign_up(self, username: str, password: str) -> int:
-        sql = ('insert into users (username, password, create_time, vip_deadline)'
-               ' values(:username, :password, current_timestamp, :infinity) returning id')
+        sql = ('insert into users (username, password, create_time, vip_deadline) '
+               'values(:username, :password, current_timestamp, :infinity) returning id')
         return self.execute(sql, username=username, password=password, infinity='infinity')
 
     def sign_in(self, username: str) -> Optional[Tuple[int, str]]:
@@ -14,8 +15,8 @@ class UserDao(Dao):
         return self.execute(sql, username=username)
 
     def user_info(self, user_id: int) -> User:
-        sql = ('select id, username, nickname, signature, vip_deadline'
-               ' from users where id=:user_id')
+        sql = ('select id, username, nickname, signature, vip_deadline '
+               'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def set_user_nickname(self, user_id: int, nickname: str):
@@ -25,6 +26,28 @@ class UserDao(Dao):
     def set_user_signature(self, user_id: int, signature: str):
         sql = 'update users set signature=:signature where id=:user_id'
         return self.execute(sql, user_id=user_id, signature=signature)
+
+    def follow_add(self, fans_id: int, star_id: int):
+        sql = 'insert into follow (fans_id ,star_id) values(:fans_id, :star_id)'
+        return self.execute(sql, fans_id=fans_id, star_id=star_id)
+
+    def follow_remove(self, fans_id: int, star_id: int):
+        sql = 'delete from where fans_id=:fans_id, star_id=:star_id'
+        return self.execute(sql, fans_id=fans_id, star_id=star_id)
+
+    def follow_star(self, user_id: int) -> List[User]:
+        sql = ('select u.id, u.nickname, u.username, u.signature from follow f inner join users u '
+               'on f.star_id=u.id where f.fans_id=:user_id')
+        return self.execute(sql, user_id=user_id)
+
+    def follow_fans(self, user_id: int) -> List[User]:
+        sql = ('select u.id, u.nickname, u.username, u.signature from follow f inner join users u '
+               'on f.fans_id=u.id where f.star_id=:user_id')
+        return self.execute(sql, user_id=user_id)
+
+    def get_level(self, user_id: int) -> datetime:
+        sql = 'select vip_deadline from users where id=:user_id'
+        return self.execute(sql, user_id=user_id)
 
 
 dao = UserDao()

@@ -24,8 +24,8 @@ class User(Model):
 
 
 class SignUpIn(User):
-    username: Optional[str]
-    password: Optional[str]
+    username: str
+    password: str
 
 
 class UserId(User):

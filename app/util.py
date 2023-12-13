@@ -15,10 +15,6 @@ from flask import request, jsonify, current_app
 
 log = logging.getLogger(__name__)
 
-_static_folder = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, 'static'))
-user_picture_folder = os.path.join(_static_folder, 'user_picture')
-flag_picture_folder = os.path.join(_static_folder, 'flag_picture')
-
 
 def custom_jwt(
     optional: bool = False,
@@ -43,12 +39,8 @@ def custom_jwt(
     return wrapper
 
 
-def resp(msg: str, code: int = 0, **kwargs):
+def resp(msg: Any, code: int = 0, **kwargs):
     return jsonify({'msg': msg, 'code': code, **kwargs})
-
-
-def parse(model):
-    return build_model(model, None, request.json)
 
 
 def args_parse(model):
@@ -60,6 +52,15 @@ def args_parse(model):
             # return current_app.ensure_sync(fn)(param, *args, **kwargs)
         return decorator
     return wrapper
+
+
+def get_request_list(body) -> dict:
+    """同名的参数key用这个按照原样取出来"""
+    d = {}
+    for k in body.keys():
+        l = body.getlist(k)
+        d[k] = l if len(l) > 1 else l[0]
+    return d
 
 
 class JSONProvider(DefaultJSONProvider):
