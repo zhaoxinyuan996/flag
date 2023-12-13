@@ -22,6 +22,7 @@ class FileType(InEnum):
 
 
 class UserLevel(InEnum):
+    signing_out = -2
     block = -1
     normal = 0
     vip = 1

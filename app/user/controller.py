@@ -148,7 +148,7 @@ def follow_remove(user: UserId):
 def follow_star():
     """我的关注"""
     stars = dao.follow_star(get_jwt_identity())
-    return resp({'data': [i.model_dump(include={'nickname', 'username', 'signature'}) for i in stars]})
+    return resp([i.model_dump(include={'nickname', 'username', 'signature'}) for i in stars])
 
 
 @bp.route('/follow-fans', methods=['post'])
@@ -156,7 +156,23 @@ def follow_star():
 def follow_fans():
     """我的粉丝"""
     fans = dao.follow_fans(get_jwt_identity())
-    return resp({'data': [i.model_dump(include={'nickname', 'username', 'signature'}) for i in fans]})
+    return resp([i.model_dump(include={'nickname', 'username', 'signature'}) for i in fans])
+
+
+@bp.route('/sign-out', methods=['post'])
+@custom_jwt()
+def sign_out():
+    """销号"""
+    dao.sign_out(get_jwt_identity())
+    return resp(message.success)
+
+
+@bp.route('/sign-out-off', methods=['post'])
+@custom_jwt()
+def sign_out_off():
+    """取消销号"""
+    dao.sign_out_off(get_jwt_identity())
+    return resp(message.success)
 
 
 def get_user_level() -> UserLevel:

@@ -49,6 +49,14 @@ class UserDao(Dao):
                'on f.fans_id=u.id where f.star_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
+    def sign_out(self, user_id: int):
+        sql = "insert into sign_out_users (user_id, out_time) values(:user_id, current_date::timestamp + '3days')"
+        return self.execute(sql, user_id=user_id)
+
+    def sign_out_off(self, user_id: int):
+        sql = "delete from sign_out_users where user_id=:user_id"
+        return self.execute(sql, user_id=user_id)
+
     def get_level(self, user_id: int) -> User:
         sql = 'select vip_deadline, block_deadline from users where id=:user_id'
         return self.execute(sql, user_id=user_id)

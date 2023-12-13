@@ -62,3 +62,11 @@ CREATE INDEX is_open_index ON flag(is_open);
 CREATE INDEX user_id_index ON flag(user_id);
 CREATE INDEX flag_index ON flag USING GIST (location);
 '''
+
+# 注销表
+d7 = '''
+create table sign_out_users (
+user_id int primary key,
+out_time timestamp not null
+)
+'''
