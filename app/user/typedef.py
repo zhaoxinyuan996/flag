@@ -23,6 +23,10 @@ class User(Model):
     create_time: Optional[datetime]
     vip_deadline: Optional[datetime]
     block_deadline: Optional[datetime]
+    alive_deadline: Optional[datetime]
+
+    belong: Optional[str]
+    location: Optional[str]
 
 
 class SignUpIn(User):

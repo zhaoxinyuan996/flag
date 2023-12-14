@@ -4,8 +4,8 @@ from app.util import InEnum
 allow_picture_type = ('jpg', 'png', 'gif')
 # 用户头像限制1m
 user_picture_size = 1024 * 1024
-# flag图片单张大小限制5m
-flag_picture_size = 5 * 1024 * 1024
+# flag图片一共大小限制10m
+flag_picture_size = 10 * 1024 * 1024
 # 头像，如果小于这个值，就不做缩略图
 user_picture_thumbnail_size = 50 * 1024
 # flag

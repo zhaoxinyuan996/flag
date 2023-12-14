@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Tuple, Optional, List
 from app.user.typedef import User
 from util.database import Dao
@@ -6,8 +5,9 @@ from util.database import Dao
 
 class UserDao(Dao):
     def sign_up(self, username: str, password: str) -> int:
-        sql = ('insert into users (username, password, create_time, vip_deadline, block_deadline) '
-               "values(:username, :password, current_timestamp, 'infinity', '-infinity') returning id")
+        sql = ('insert into users (username, password, create_time, vip_deadline, block_deadline, alive_deadline) '
+               "values"
+               "(:username, :password, current_timestamp, 'infinity', '-infinity', current_timestamp) returning id")
         return self.execute(sql, username=username, password=password)
 
     def sign_in(self, username: str) -> Optional[Tuple[int, str]]:
@@ -15,9 +15,14 @@ class UserDao(Dao):
         return self.execute(sql, username=username)
 
     def user_info(self, user_id: int) -> Optional[User]:
-        sql = ('select id, username, nickname, profile_picture, signature, vip_deadline, block_deadline '
+        sql = ('select id, username, nickname, profile_picture, signature, '
+               'vip_deadline, block_deadline, belong, location '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
+
+    def refresh(self, user_id: int, location: str):
+        sql = 'update users set alive_deadline=current_timestamp, location=:location where id=:user_id'
+        return self.execute(sql, user_id=user_id, location=location)
 
     def set_profile_picture(self, user_id: int, url: str):
         sql = 'update users set profile_picture=:url where id=:user_id'

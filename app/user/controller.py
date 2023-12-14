@@ -1,14 +1,20 @@
+import logging
 import os
 import re
+import random
+import requests
 from sqlalchemy import exc
 from app.user.dao import dao
 from datetime import datetime
+from functools import partial
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
 from app.constants import message, allow_picture_type, user_picture_size, UserLevel, FileType
 from app.user.typedef import SignUpIn, SetUserNickname, SetUserSignature, UserId
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
+from common.job import DelayJob
+from util.database import db
 from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
@@ -18,11 +24,13 @@ bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
 username_pattern = re.compile(r'^[a-zA-Z0-9_-]{4,16}$')
 password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 
+log = logging.getLogger(__name__)
+
 
 @bp.route('/sign-up', methods=['post'])
 @args_parse(SignUpIn)
 def sign_up(user: SignUpIn):
-    # 密码强度，//密码强度正则，最少6位，包括至少1个大写字母，1个小写字母，1个数字
+    # 密码强度，密码强度正则，最少6位，包括至少1个大写字母，1个小写字母，1个数字
     if len(user.username) > 16 or not username_pattern.match(user.username):
         return resp(message.user_sign_up_username_weak, -1)
     if len(user.password) > 16 or not password_pattern.match(user.password):
@@ -46,6 +54,7 @@ def sign_in(user: SignUpIn):
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
+        DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
         return resp(message.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
         return resp(message.user_sign_in_password_error, -1)
@@ -54,7 +63,10 @@ def sign_in(user: SignUpIn):
 @bp.route('/refresh-jwt', methods=['post'])
 @custom_jwt()
 def refresh_kwt():
-    access_token = create_access_token(identity=get_jwt_identity())
+    """更新jwt，要结合更多的redis？用户状态控制？"""
+    user_id = get_jwt_identity()
+    access_token = create_access_token(identity=user_id)
+    DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
     return resp(message.user_sign_in_success, access_token=access_token)
 
 
@@ -71,7 +83,9 @@ def user_info():
     if not res:
         return resp(message.user_sign_in_not_exist, -1)
     return resp(res.model_dump(include={
-        'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline', 'block_deadline'}))
+        'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline',
+        'block_deadline', 'belong', 'location'
+    }))
 
 
 @bp.route('/set-profile-picture', methods=['post'])
@@ -187,3 +201,32 @@ def get_user_level() -> UserLevel:
         level = UserLevel.normal
     g.user_level = level
     return level
+
+
+def get_location(user_id: int, ip: str):
+    """获取ip位置"""
+    from app import app
+
+    def _get_location():
+        try:
+            data = requests.get(api + ip).json()
+            log.info(str(data))
+            return data[key]
+        except requests.RequestException:
+            return None
+    apis = (
+        ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
+        ('http://www.ip508.com/ip?q=', 'addr'),
+        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=', 'addr'),
+    )
+    idx_list = [i for i in range(len(apis))]
+    random.shuffle(idx_list)
+    location = ''
+    for i in idx_list:
+        api, key = apis[i]
+        location = _get_location()
+        if location:
+            break
+    with app.app_context():
+        dao.refresh(user_id, location=location)
+        db.session.commit()

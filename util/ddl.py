@@ -24,6 +24,9 @@ background_picture text,
 create_time timestamp not null,
 vip_deadline timestamp,
 block_deadline timestamp,
+alive_deadline timestamp,
+belong text,
+location text,
 UNIQUE(username)
 );
 '''
@@ -41,8 +44,16 @@ CREATE INDEX fans_index ON follow(fans_id);
 CREATE INDEX star_index ON follow(star_id);
 '''
 
-# flag表
+# 注销表
 d5 = '''
+create table sign_out_users (
+user_id int primary key,
+out_time timestamp not null
+)
+'''
+
+# flag表
+d6 = '''
 create table flag (
 id serial primary key,
 user_id int not null,
@@ -52,21 +63,32 @@ type int,
 is_open int not null,
 create_time timestamp not null,
 update_time timestamp not null,
-has_picture int not null
+pictures text[] not null
 );
 '''
 
-d6 = '''
+d7 = '''
 CREATE INDEX type_index ON flag(type);
 CREATE INDEX is_open_index ON flag(is_open);
 CREATE INDEX user_id_index ON flag(user_id);
 CREATE INDEX flag_index ON flag USING GIST (location);
 '''
 
-# 注销表
-d7 = '''
-create table sign_out_users (
-user_id int primary key,
-out_time timestamp not null
+# 评论表
+d8 = '''
+create table flag_comment(
+id serial primary key,
+flag_id int not null,
+user_id int not null,
+content text not null,
+root_comment_id int,
+location point not null,
+prefix text,
+comment_time timestamp not null
 )
+'''
+
+d9 = '''
+CREATE INDEX flag_comment_index ON flag_comment(flag_id);
+CREATE INDEX comment_flag_comment_index ON flag_comment USING GIST (location);
 '''
