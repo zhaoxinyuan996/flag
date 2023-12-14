@@ -7,7 +7,7 @@ from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type
 from app.user.controller import get_user_level
-from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance
+from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance, GetFlagByWithType
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
 from util.file_minio import file_minio
@@ -76,7 +76,14 @@ def get_flag(get: GetFlagBy):
         return resp(flag.model_dump() if flag else None)
     elif get.by == 'user':
         return resp([f.model_dump() for f in dao.get_flag_by_user(get.key, get_jwt_identity(), get)])
-    elif get.by == 'location':
+    return resp(message.system_error)
+
+
+@bp.route('/get-flag-type', methods=['post'])
+@args_parse(GetFlagByWithType)
+@custom_jwt()
+def get_flag_type(get: GetFlagByWithType):
+    if get.by == 'location':
         return resp([f.model_dump() for f in dao.get_flag_by_location(get_jwt_identity(), get)])
     return resp(message.system_error)
 

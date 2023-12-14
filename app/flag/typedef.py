@@ -34,6 +34,7 @@ class AddFlag(Flag):
     location: Tuple[float, float]
     content: str
 
+    type: int
     is_open: int
     pictures: List[str]
 
@@ -44,6 +45,11 @@ class GetFlagBy(Order):
     distance: Optional[Tuple[float, float]]
 
 
+class GetFlagByWithType(GetFlagBy):
+    type: int
+
+
 class GetFlagCountByDistance(Model):
+    type: int
     key: Tuple[float, float]
     distance: Optional[Tuple[float, float]]

@@ -1,5 +1,5 @@
 from typing import List, Optional, Tuple
-from app.flag.typedef import Flag, GetFlagBy
+from app.flag.typedef import Flag, GetFlagBy, GetFlagByWithType
 from util.database import Dao
 
 
@@ -28,25 +28,25 @@ class FlagDao(Dao):
                f'order by {get.order} {get.asc}')
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
-    def get_flag_by_location(self, user_id: int, get: GetFlagBy) -> List[Flag]:
+    def get_flag_by_location(self, user_id: int, get: GetFlagByWithType) -> List[Flag]:
         sql = (f'select {self.fields} from flag where '
-               '(user_id=:user_id or is_open=1) and '
+               '(user_id=:user_id or is_open=1) and type=:type and '
                'location_x<:location_x_add and location_x>:location_x_sub and '
                'location_y<:location_y_add and location_y>:location_y_sub '
                f'order by {get.order} {get.asc}')
-        return self.execute(sql, user_id=user_id,
+        return self.execute(sql, user_id=user_id, type=get.type,
                             location_x_add=get.key[0] + get.distance[0],
                             location_x_sub=get.key[0] - get.distance[0],
                             location_y_add=get.key[1] + get.distance[1],
                             location_y_sub=get.key[1] - get.distance[1],
                             )
 
-    def get_flag_by_location_count(self, user_id: int, get: GetFlagBy) -> int:
+    def get_flag_by_location_count(self, user_id: int, get: GetFlagByWithType) -> int:
         sql = (f'select count(1) from flag where '
-               '(user_id=:user_id or is_open=1) and '
+               '(user_id=:user_id or is_open=1) and type=:type and '
                'location_x<:location_x_add and location_x>:location_x_sub and '
                'location_y<:location_y_add and location_y>:location_y_sub ')
-        return self.execute(sql, user_id=user_id,
+        return self.execute(sql, user_id=user_id, type=get.type,
                             location_x_add=get.key[0] + get.distance[0],
                             location_x_sub=get.key[0] - get.distance[0],
                             location_y_add=get.key[1] + get.distance[1],
