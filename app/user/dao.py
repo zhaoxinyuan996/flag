@@ -16,13 +16,14 @@ class UserDao(Dao):
 
     def user_info(self, user_id: int) -> Optional[User]:
         sql = ('select id, username, nickname, profile_picture, signature, '
-               'vip_deadline, block_deadline, belong, location '
+               'vip_deadline, block_deadline, belong, location_x, location_y '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
-    def refresh(self, user_id: int, location: str):
-        sql = 'update users set alive_deadline=current_timestamp, location=:location where id=:user_id'
-        return self.execute(sql, user_id=user_id, location=location)
+    def refresh(self, user_id: int, location_x: float, location_y: float):
+        sql = ('update users set alive_deadline=current_timestamp, location_x=:location_x, location_y=:location_y '
+               'where id=:user_id')
+        return self.execute(sql, user_id=user_id, location_x=location_x, location_y=location_y)
 
     def set_profile_picture(self, user_id: int, url: str):
         sql = 'update users set profile_picture=:url where id=:user_id'

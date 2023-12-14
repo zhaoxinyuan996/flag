@@ -90,7 +90,7 @@ class Dao:
 
     def __init__(self):
         for k, v in type(self).__dict__.items():
-            if not k.startswith('__'):
+            if not k.startswith('__') and isinstance(v, Callable):
                 setattr(self, k, partial(wrap, self, getattr(type(self), k)))
 
     @staticmethod

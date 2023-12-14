@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from flask import g
 from app.util import InEnum
 
@@ -13,6 +15,7 @@ flag_picture_thumbnail_size = 100 * 1024
 
 
 class ErrorCode:
+    params_error = -254
     base_error = -255
 
 
@@ -83,6 +86,10 @@ class Message:
     blocked_user = {
         'zh': '你已被锁定',
         'en': 'you have been locked'
+    }
+    params_error = {
+        'zh': '参数错误',
+        'en': 'params error'
     }
     system_error = {
         'zh': '系统错误',

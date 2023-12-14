@@ -74,8 +74,9 @@ class JSONProvider(DefaultJSONProvider):
 class Model(BaseModel):
     def __init__(self, **kwargs):
         cls = type(self)
-        base_cls = cls if cls.__base__ is Model else cls.__bases__[-1]
-        kw = {k: None for k in base_cls.__annotations__}
+        kw = {}
+        for cls in cls.__mro__[:-3]:
+            kw.update({k: None for k in cls.__annotations__})
         kw.update(kwargs)
         # [kw.pop(i) for i in args if kw[i] is None]
         super().__init__(**kw)

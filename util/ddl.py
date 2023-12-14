@@ -26,7 +26,8 @@ vip_deadline timestamp,
 block_deadline timestamp,
 alive_deadline timestamp,
 belong text,
-location text,
+location_x numeric,
+location_y numeric,
 UNIQUE(username)
 );
 '''
@@ -57,7 +58,8 @@ d6 = '''
 create table flag (
 id serial primary key,
 user_id int not null,
-location point not null,
+location_x numeric not null,
+location_y numeric not null,
 content text,
 type int,
 is_open int not null,
@@ -71,7 +73,8 @@ d7 = '''
 CREATE INDEX type_index ON flag(type);
 CREATE INDEX is_open_index ON flag(is_open);
 CREATE INDEX user_id_index ON flag(user_id);
-CREATE INDEX flag_index ON flag USING GIST (location);
+CREATE INDEX flag_x_index ON flag(location_x);
+CREATE INDEX flag_x_index ON flag(location_y);
 '''
 
 # 评论表
@@ -82,7 +85,8 @@ flag_id int not null,
 user_id int not null,
 content text not null,
 root_comment_id int,
-location point not null,
+location_x numeric not null,
+location_y numeric not null,
 prefix text,
 comment_time timestamp not null
 )

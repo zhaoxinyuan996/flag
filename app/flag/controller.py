@@ -1,16 +1,16 @@
 import os
-import shutil
 import logging
+from typing import List, Tuple
 from app import message
 from app.flag.dao import dao
-from flask import Blueprint, request
+from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
-from app.constants import UserLevel, flag_picture_size
+from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type
 from app.user.controller import get_user_level
-from app.user.dao import dao as user_dao
-from app.flag.typedef import Flag, AddFlag
+from app.flag.typedef import AddFlag, GetFlagById
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
+from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
@@ -18,9 +18,8 @@ bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
 log = logging.getLogger(__name__)
 
 
-@bp.route('/add', methods=['post'])
-@custom_jwt()
-def add():
+def _build() -> List[Tuple[str, bytes]]:
+    """集成各种校验，返回图片"""
     pictures = request.files.getlist('pic')
     level = get_user_level()
     if level == UserLevel.normal and len(pictures) > 1:
@@ -30,32 +29,52 @@ def add():
     length = 0
     datas = []
     for p in pictures:
+        _, suffix = p.filename.rsplit('.', 1)
+        if suffix not in allow_picture_type:
+            return resp(message.user_picture_format_error + str(allow_picture_type), -1)
+
         data = p.stream.read()
         length += len(data)
         if length > flag_picture_size:
             return resp(message.too_large)
-        datas.append(data)
 
-    flag = AddFlag(**get_request_list(request.form))
-    flag.user_id = get_jwt_identity()
-    pic_folder = None
-    if pictures:
-        flag.has_picture = 1
-    try:
-        with db.auto_commit():
-            flag.id = dao.add(flag)
-            assert flag.id
+        datas.append((suffix, data))
+    return datas
 
-            # pic_folder = os.path.join(flag_picture_folder, str(flag.id))
-            if not os.path.exists(pic_folder):
-                os.mkdir(pic_folder)
 
-            for i, data in enumerate(datas):
-                with open(os.path.join(pic_folder, str(i)), 'wb') as f:
-                    f.write(data)
-    except Exception as e:
-        log.exception(e)
-        if pic_folder:
-            shutil.rmtree(pic_folder)
+@bp.route('/add', methods=['post'])
+@custom_jwt()
+def add():
+    _flag = get_request_list(request.form)
+    _flag['user_id'] = get_jwt_identity()
+    _flag['pictures'] = []
+    flag = AddFlag(**_flag)
+    if len(flag.content) > 300:
+        return resp(message.too_long)
+    datas = _build()
+    if isinstance(datas, Response):
+        return datas
 
-    return resp(message.success)
+    with db.auto_commit():
+        flag.id = dao.add(flag)
+
+        for i, data in enumerate(datas):
+            suffix, b = data
+            file_minio.upload(f'{flag.id}-{i}.{suffix}', FileType.flag_pic, b, get_user_level() == UserLevel.vip)
+            flag.pictures.append(file_minio.get_file_url(FileType.flag_pic, f'{flag.id}.{suffix}'))
+
+        dao.update(flag)
+    return resp(message.success, flag_id=flag.id)
+
+
+@bp.route('/get-flag', methods=['post'])
+@args_parse(GetFlagById)
+@custom_jwt()
+def get_flag(get: GetFlagById):
+    if get.by == 'flag':
+        return resp(dao.get_flag_by_flag(get.id, get_jwt_identity()).model_dump())
+    elif get.by == 'user':
+        return resp([f.model_dump() for f in dao.get_flag_by_user(get.id, get_jwt_identity(), get.order, get.asc)])
+    elif get.by == 'location':
+        return resp(message.system_error)
+    return resp(message.system_error)

@@ -26,7 +26,8 @@ class User(Model):
     alive_deadline: Optional[datetime]
 
     belong: Optional[str]
-    location: Optional[str]
+    location_x: Optional[float]
+    location_y: Optional[float]
 
 
 class SignUpIn(User):

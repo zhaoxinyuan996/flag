@@ -3,6 +3,8 @@ from datetime import timedelta
 from flask import Flask, Response
 from flask.globals import g
 from flask_jwt_extended import JWTManager
+from pydantic import ValidationError
+
 from app.constants import message, ErrorCode
 from app.util import resp, JSONProvider
 from util.config import uri, dev
@@ -30,6 +32,8 @@ def init(_app: Flask):
 
     @_app.errorhandler(Exception)
     def error(e: BaseException):
+        if isinstance(e, ValidationError):
+            return resp(message.params_error, ErrorCode.params_error), getattr(e, 'code', 500)
         log.exception(e)
         if dev:
             return resp(str(e), ErrorCode.base_error), getattr(e, 'code', 500)
