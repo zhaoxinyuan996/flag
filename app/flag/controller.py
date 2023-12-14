@@ -7,7 +7,7 @@ from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type
 from app.user.controller import get_user_level
-from app.flag.typedef import AddFlag, GetFlagById
+from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
 from util.file_minio import file_minio
@@ -68,13 +68,21 @@ def add():
 
 
 @bp.route('/get-flag', methods=['post'])
-@args_parse(GetFlagById)
+@args_parse(GetFlagBy)
 @custom_jwt()
-def get_flag(get: GetFlagById):
+def get_flag(get: GetFlagBy):
     if get.by == 'flag':
-        return resp(dao.get_flag_by_flag(get.id, get_jwt_identity()).model_dump())
+        flag = dao.get_flag_by_flag(get.key, get_jwt_identity())
+        return resp(flag.model_dump() if flag else None)
     elif get.by == 'user':
-        return resp([f.model_dump() for f in dao.get_flag_by_user(get.id, get_jwt_identity(), get.order, get.asc)])
+        return resp([f.model_dump() for f in dao.get_flag_by_user(get.key, get_jwt_identity(), get)])
     elif get.by == 'location':
-        return resp(message.system_error)
+        return resp([f.model_dump() for f in dao.get_flag_by_location(get_jwt_identity(), get)])
     return resp(message.system_error)
+
+
+@bp.route('/get-flag-count', methods=['post'])
+@args_parse(GetFlagCountByDistance)
+@custom_jwt()
+def get_flag_count(get: GetFlagCountByDistance):
+    return resp(dao.get_flag_by_location_count(get_jwt_identity(), get))

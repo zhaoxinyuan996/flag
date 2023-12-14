@@ -24,7 +24,7 @@ class SQLAlchemy(_SQLAlchemy):
             raise e
 
     def execute(self, sql: str, **kwargs) -> Optional[Tuple[RMKeyView, Any]]:
-        log.info(sql)
+        log.info(text(sql))
         response = self.session.execute(text(sql), kwargs)
         if response.returns_rows:
             records = response.fetchall()

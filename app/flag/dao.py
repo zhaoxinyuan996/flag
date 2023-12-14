@@ -1,5 +1,5 @@
-from typing import List, Optional
-from app.flag.typedef import Flag
+from typing import List, Optional, Tuple
+from app.flag.typedef import Flag, GetFlagBy
 from util.database import Dao
 
 
@@ -22,19 +22,36 @@ class FlagDao(Dao):
         sql = f'select {self.fields} from flag where id=:flag_id and (is_open=1 or user_id=:user_id)'
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
-    def get_flag_by_user(self, user_id: int, private_id: int, _order: str, _asc: int) -> List[Flag]:
-        order = 'create_time' if _order == 't' else 'create_time'
-        asc = 'asc' if _asc else 'desc'
+    def get_flag_by_user(self, user_id: int, private_id: int, get: GetFlagBy) -> List[Flag]:
         sql = (f'select {self.fields} from flag where '
                'user_id=:private_id or (is_open=1 and user_id=:user_id) '
-               f'order by {order} {asc}')
+               f'order by {get.order} {get.asc}')
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
-    def get_flag_by_location(self, user_id: int) -> List[Flag]:
-        ...
+    def get_flag_by_location(self, user_id: int, get: GetFlagBy) -> List[Flag]:
+        sql = (f'select {self.fields} from flag where '
+               '(user_id=:user_id or is_open=1) and '
+               'location_x<:location_x_add and location_x>:location_x_sub and '
+               'location_y<:location_y_add and location_y>:location_y_sub '
+               f'order by {get.order} {get.asc}')
+        return self.execute(sql, user_id=user_id,
+                            location_x_add=get.key[0] + get.distance[0],
+                            location_x_sub=get.key[0] - get.distance[0],
+                            location_y_add=get.key[1] + get.distance[1],
+                            location_y_sub=get.key[1] - get.distance[1],
+                            )
 
-    def get_flag_by_location_count(self, user_id: int) -> Optional[int]:
-        ...
+    def get_flag_by_location_count(self, user_id: int, get: GetFlagBy) -> int:
+        sql = (f'select count(1) from flag where '
+               '(user_id=:user_id or is_open=1) and '
+               'location_x<:location_x_add and location_x>:location_x_sub and '
+               'location_y<:location_y_add and location_y>:location_y_sub ')
+        return self.execute(sql, user_id=user_id,
+                            location_x_add=get.key[0] + get.distance[0],
+                            location_x_sub=get.key[0] - get.distance[0],
+                            location_y_add=get.key[1] + get.distance[1],
+                            location_y_sub=get.key[1] - get.distance[1],
+                            )
 
 
 dao = FlagDao()

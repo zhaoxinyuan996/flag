@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 from app.util import Model
 from typedef import Order
 
@@ -38,13 +38,12 @@ class AddFlag(Flag):
     pictures: List[str]
 
 
-class _GetFlag(Flag):
+class GetFlagBy(Order):
     by: str
+    key: Union[int, Tuple[float, float]]
+    distance: Optional[Tuple[float, float]]
 
 
-class GetFlagById(Order, _GetFlag):
-    id: int
-
-
-class GetFlagByLocation(_GetFlag):
-    location: Tuple[float, float]
+class GetFlagCountByDistance(Model):
+    key: Tuple[float, float]
+    distance: Optional[Tuple[float, float]]

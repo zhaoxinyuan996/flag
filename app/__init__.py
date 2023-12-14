@@ -32,13 +32,14 @@ def init(_app: Flask):
 
     @_app.errorhandler(Exception)
     def error(e: BaseException):
-        if isinstance(e, ValidationError):
-            return resp(message.params_error, ErrorCode.params_error), getattr(e, 'code', 500)
+
         log.exception(e)
         if dev:
             return resp(str(e), ErrorCode.base_error), getattr(e, 'code', 500)
-        else:
-            return resp(message.system_error, ErrorCode.base_error), getattr(e, 'code', 500)
+
+        if isinstance(e, ValidationError):
+            return resp(message.params_error, ErrorCode.params_error), getattr(e, 'code', 500)
+        return resp(message.system_error, ErrorCode.base_error), getattr(e, 'code', 500)
 
 
 def create_app() -> Flask:
