@@ -15,6 +15,12 @@ minio:
     username: zhaoxinyuan996
     password: 996yeszxy
     secure: false
+  test:
+    host: 127.0.0.1
+    port: 9000
+    username: zhaoxinyuan996
+    password: 996yeszxy
+    secure: false
   prod:
     host: 121.40.49.158
     port: 9000
