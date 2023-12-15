@@ -157,7 +157,7 @@ def set_profile_picture():
 @custom_jwt()
 def get_profile_picture():
     """获取头像"""
-    url = file_minio.get_file_url(FileType.head_pic, str(get_jwt_identity()), thumbnail=False)
+    url = file_minio.get_file_url(FileType.head_pic, str(get_jwt_identity()), origin=False)
     return resp(resp_msg.success, url=url)
 
 
