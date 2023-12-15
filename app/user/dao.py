@@ -67,5 +67,24 @@ class UserDao(Dao):
         sql = 'select vip_deadline, block_deadline from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
+    def set_black(self, user_id: int, black_id: int):
+        sql = ('insert into black_list (user_id, black_id, update_time) '
+               'values(:user_id, :black_id, current_timestamp) '
+               'on conflict(user_id, black_id) do update set update_time=current_timestamp')
+        return self.execute(sql, user_id=user_id, black_id=black_id)
+
+    def unset_black(self, user_id: int, black_id: int):
+        sql = 'delete from black_list where user_id=:user_id and black_id=:black_id'
+        return self.execute(sql, user_id=user_id, black_id=black_id)
+
+    def black_list(self, user_id: int) -> List[User]:
+        sql = ('select u.id, u.nickname from black_list b inner join users u '
+               'on b.black_id=u.id where u.id=:user_id')
+        return self.execute(sql, user_id=user_id)
+
+    def exist(self, user_id: int) -> Optional[int]:
+        sql = 'select 1 from users where id=:user_id'
+        return self.execute(sql, user_id=user_id)
+
 
 dao = UserDao()

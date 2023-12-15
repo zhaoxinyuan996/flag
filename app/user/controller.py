@@ -27,6 +27,49 @@ password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 log = logging.getLogger(__name__)
 
 
+def get_user_level() -> UserLevel:
+    """获取用户级别，后面用redis存"""
+    user_id = get_jwt_identity()
+    user = dao.get_level(user_id)
+    if user.block_deadline > datetime.now():
+        level = UserLevel.block
+    elif user.vip_deadline > datetime.now():
+        level = UserLevel.vip
+    else:
+        level = UserLevel.normal
+    g.user_level = level
+    return level
+
+
+def get_location(user_id: int, ip: str):
+    """获取ip位置"""
+    from app import app
+
+    def _get_location():
+        try:
+            data = requests.get(api + ip).json()
+            log.info(str(data))
+            return data[key]
+        except requests.RequestException:
+            return None
+    apis = (
+        ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
+        ('http://www.ip508.com/ip?q=', 'addr'),
+        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=', 'addr'),
+    )
+    idx_list = [i for i in range(len(apis))]
+    random.shuffle(idx_list)
+    location = ''
+    for i in idx_list:
+        api, key = apis[i]
+        location = _get_location()
+        if location:
+            break
+    with app.app_context():
+        dao.refresh(user_id, location=location)
+        db.session.commit()
+
+
 @bp.route('/sign-up', methods=['post'])
 @args_parse(SignUpIn)
 def sign_up(user: SignUpIn):
@@ -189,44 +232,29 @@ def sign_out_off():
     return resp(message.success)
 
 
-def get_user_level() -> UserLevel:
-    """获取用户级别，后面用redis存"""
-    user_id = get_jwt_identity()
-    user = dao.get_level(user_id)
-    if user.block_deadline > datetime.now():
-        level = UserLevel.block
-    elif user.vip_deadline > datetime.now():
-        level = UserLevel.vip
-    else:
-        level = UserLevel.normal
-    g.user_level = level
-    return level
+@bp.route('/set-black', methods=['post'])
+@args_parse(UserId)
+@custom_jwt()
+def set_black(black: UserId):
+    """拉黑"""
+    if not dao.exist(black.id):
+        return resp(message.user_sign_in_not_exist, -1)
+
+    dao.set_black(get_jwt_identity(), black.id)
+    return resp(message.success)
 
 
-def get_location(user_id: int, ip: str):
-    """获取ip位置"""
-    from app import app
+@bp.route('/unset-black', methods=['post'])
+@args_parse(UserId)
+@custom_jwt()
+def unset_black(black: UserId):
+    """解除拉黑"""
+    dao.unset_black(get_jwt_identity(), black.id)
+    return resp(message.success)
 
-    def _get_location():
-        try:
-            data = requests.get(api + ip).json()
-            log.info(str(data))
-            return data[key]
-        except requests.RequestException:
-            return None
-    apis = (
-        ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
-        ('http://www.ip508.com/ip?q=', 'addr'),
-        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=', 'addr'),
-    )
-    idx_list = [i for i in range(len(apis))]
-    random.shuffle(idx_list)
-    location = ''
-    for i in idx_list:
-        api, key = apis[i]
-        location = _get_location()
-        if location:
-            break
-    with app.app_context():
-        dao.refresh(user_id, location=location)
-        db.session.commit()
+
+@bp.route('/black-list', methods=['post'])
+@custom_jwt()
+def black_list():
+    """我的拉黑"""
+    return resp([u.model_dump(include={'id', 'nickname'}) for u in dao.black_list(get_jwt_identity())])

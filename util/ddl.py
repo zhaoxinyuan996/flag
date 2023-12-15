@@ -96,3 +96,15 @@ d9 = '''
 CREATE INDEX flag_comment_index ON flag_comment(flag_id);
 CREATE INDEX comment_flag_comment_index ON flag_comment USING GIST (location);
 '''
+
+d10 = '''
+create table black_list(
+user_id int not null,
+black_id int not null,
+update_time timestamp,
+primary key(user_id, black_id)
+);
+'''
+d11 = '''
+CREATE INDEX user_black_index ON black_list(user_id);
+'''
