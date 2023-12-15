@@ -39,17 +39,28 @@ class AddFlag(Flag):
     pictures: List[str]
 
 
+class UpdateFlag(AddFlag):
+    id: int
+
+
 class GetFlagBy(Order):
     by: str
     key: Union[int, Tuple[float, float]]
     distance: Optional[Tuple[float, float]]
 
 
-class GetFlagByWithType(GetFlagBy):
+class FlagType(Model):
     type: int
 
 
-class GetFlagCountByDistance(Model):
-    type: int
+class SetFlagType(FlagType):
+    id: int
+
+
+class GetFlagByWithType(GetFlagBy, FlagType):
+    ...
+
+
+class GetFlagCountByDistance(FlagType, Model):
     key: Tuple[float, float]
     distance: Optional[Tuple[float, float]]

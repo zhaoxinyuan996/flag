@@ -1,13 +1,13 @@
 import os
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from app import message
 from app.flag.dao import dao
 from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
-from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type
 from app.user.controller import get_user_level
-from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance, GetFlagByWithType
+from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type
+from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance, GetFlagByWithType, UpdateFlag, SetFlagType
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
 from util.file_minio import file_minio
@@ -18,7 +18,7 @@ bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
 log = logging.getLogger(__name__)
 
 
-def _build() -> List[Tuple[str, bytes]]:
+def _build(content: str) -> List[Tuple[str, bytes]]:
     """集成各种校验，返回图片"""
     pictures = request.files.getlist('pic')
     level = get_user_level()
@@ -39,32 +39,49 @@ def _build() -> List[Tuple[str, bytes]]:
             return resp(message.too_large)
 
         datas.append((suffix, data))
+
+    if len(content) > 300:
+        return resp(message.too_long)
+
     return datas
 
 
-@bp.route('/add', methods=['post'])
-@custom_jwt()
-def add():
+def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
+    """新增和修改"""
     _flag = get_request_list(request.form)
     _flag['user_id'] = get_jwt_identity()
     _flag['pictures'] = []
-    flag = AddFlag(**_flag)
-    if len(flag.content) > 300:
-        return resp(message.too_long)
-    datas = _build()
+    flag = model(**_flag)
+
+    datas = _build(flag.content)
     if isinstance(datas, Response):
         return datas
 
     with db.auto_commit():
-        flag.id = dao.add(flag)
+        if new:
+            flag.id = dao.add(flag)
 
         for i, data in enumerate(datas):
             suffix, b = data
             file_minio.upload(f'{flag.id}-{i}.{suffix}', FileType.flag_pic, b, get_user_level() == UserLevel.vip)
             flag.pictures.append(file_minio.get_file_url(FileType.flag_pic, f'{flag.id}.{suffix}'))
 
-        dao.update(flag)
+        flag_id = dao.update(flag)
+        if not flag_id:
+            return resp(message.flag_not_exist, -1)
     return resp(message.success, flag_id=flag.id)
+
+
+@bp.route('/add', methods=['post'])
+@custom_jwt()
+def add():
+    return _add_or_update(AddFlag, new=True)
+
+
+@bp.route('/update', methods=['post'])
+@custom_jwt()
+def update():
+    return _add_or_update(UpdateFlag, new=False)
 
 
 @bp.route('/get-flag', methods=['post'])
@@ -93,3 +110,11 @@ def get_flag_type(get: GetFlagByWithType):
 @custom_jwt()
 def get_flag_count(get: GetFlagCountByDistance):
     return resp(dao.get_flag_by_location_count(get_jwt_identity(), get))
+
+
+@bp.route('/set-flag-type', methods=['post'])
+@args_parse(SetFlagType)
+@custom_jwt()
+def set_flag_type(set_: SetFlagType):
+    dao.set_flag_type(get_jwt_identity(), set_.id, set_.type)
+    return resp(message.success)

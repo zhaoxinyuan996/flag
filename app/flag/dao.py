@@ -14,9 +14,9 @@ class FlagDao(Dao):
         return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open,
                             location_x=flag.location[0], location_y=flag.location[1], type=flag.type)
 
-    def update(self, flag: Flag):
-        sql = 'update flag set pictures=:pictures where id=:id'
-        self.execute(sql, id=flag.id, pictures=flag.pictures)
+    def update(self, flag: Flag) -> Optional[int]:
+        sql = 'update flag set pictures=:pictures where id=:id returning id'
+        return self.execute(sql, id=flag.id, pictures=flag.pictures)
 
     def get_flag_by_flag(self, flag_id: int, user_id: int) -> Optional[Flag]:
         sql = f'select {self.fields} from flag where id=:flag_id and (is_open=1 or user_id=:user_id)'
@@ -52,6 +52,10 @@ class FlagDao(Dao):
                             location_y_add=get.key[1] + get.distance[1],
                             location_y_sub=get.key[1] - get.distance[1],
                             )
+
+    def set_flag_type(self, user_id: int, flag_id: int, flag_type: int):
+        sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
+        self.execute(sql, user_id=user_id, flag_id=flag_id, flag_type=flag_type)
 
 
 dao = FlagDao()

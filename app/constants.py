@@ -79,6 +79,10 @@ class Message:
         'zh': '大小超限',
         'en': 'too large'
     }
+    flag_not_exist = {
+        'zh': '标记不存在',
+        'en': 'flag not exist'
+    }
     success = {
         'zh': '成功',
         'en': 'success'
