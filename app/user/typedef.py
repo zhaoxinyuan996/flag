@@ -30,7 +30,13 @@ class User(Model):
     location_y: Optional[float]
 
 
-class SignUpIn(User):
+class SignUp(User):
+    username: str
+    password: str
+    nickname: str
+
+
+class SignIn(User):
     username: str
     password: str
 
@@ -48,4 +54,4 @@ class SetUserSignature(User):
 
 
 if __name__ == '__main__':
-    print(User('id', **{'id': 1}).model_dump(include={'id'}))
+    ...

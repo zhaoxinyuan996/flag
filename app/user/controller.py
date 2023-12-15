@@ -10,7 +10,7 @@ from functools import partial
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
 from app.constants import resp_msg, allow_picture_type, user_picture_size, UserLevel, FileType
-from app.user.typedef import SignUpIn, SetUserNickname, SetUserSignature, UserId
+from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
@@ -75,8 +75,8 @@ def exists_black_list(user_id: int, black_id: int) -> bool:
 
 
 @bp.route('/sign-up', methods=['post'])
-@args_parse(SignUpIn)
-def sign_up(user: SignUpIn):
+@args_parse(SignUp)
+def sign_up(user: SignUp):
     # 密码强度，密码强度正则，最少6位，包括至少1个大写字母，1个小写字母，1个数字
     if len(user.username) > 16 or not username_pattern.match(user.username):
         return resp(resp_msg.user_sign_up_username_weak, -1)
@@ -93,8 +93,8 @@ def sign_up(user: SignUpIn):
 
 
 @bp.route('/sign-in', methods=['post'])
-@args_parse(SignUpIn)
-def sign_in(user: SignUpIn):
+@args_parse(SignIn)
+def sign_in(user: SignIn):
     res = dao.sign_in(user.username)
     if not res:
         return resp(resp_msg.user_sign_in_not_exist, -1)
@@ -209,7 +209,7 @@ def follow_remove(user: UserId):
 def follow_star():
     """我的关注"""
     stars = dao.follow_star(get_jwt_identity())
-    return resp([i.model_dump(include={'id','nickname', 'username', 'signature'}) for i in stars])
+    return resp([i.model_dump(include={'id', 'nickname', 'username', 'signature'}) for i in stars])
 
 
 @bp.route('/follow-fans', methods=['post'])
