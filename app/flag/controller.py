@@ -6,7 +6,8 @@ from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
 from app.user.controller import get_user_level
 from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type, resp_msg
-from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance, GetFlagByWithType, UpdateFlag, SetFlagType
+from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance, GetFlagByWithType, UpdateFlag, SetFlagType, \
+    AddComment, AddSubComment, FlagId
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
 from util.file_minio import file_minio
@@ -116,4 +117,44 @@ def get_flag_count(get: GetFlagCountByDistance):
 @custom_jwt()
 def set_flag_type(set_: SetFlagType):
     dao.set_flag_type(get_jwt_identity(), set_.id, set_.type)
+    return resp(resp_msg.success)
+
+
+@bp.route('/add-comment', methods=['post'])
+@args_parse(AddComment)
+@custom_jwt()
+def add_comment(add_: AddComment):
+    dao.add_comment(add_.flag_id, get_jwt_identity(), add_.content, add_.location, None, None)
+    return resp(resp_msg.success)
+
+
+@bp.route('/add-sub-comment', methods=['post'])
+@args_parse(AddSubComment)
+@custom_jwt()
+def add_sub_comment(add_: AddSubComment):
+    resp_nickname = dao.get_nickname_by_comment_id(add_.ask_user_id) or ' '
+    prefix = '@' + resp_nickname
+
+    with db.auto_commit():
+        root_comment_id = dao.add_comment(
+            add_.flag_id, get_jwt_identity(), add_.content, add_.location, add_.root_comment_id, prefix)
+        dao.add_sub_comment(root_comment_id)
+    return resp(resp_msg.success)
+
+
+@bp.route('/get-comment', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def get_comment(flag: FlagId):
+    user_id = get_jwt_identity()
+    if not dao.flag_is_open(user_id, flag.id):
+        return resp(resp_msg.flag_not_exist)
+    return resp([c.model_dump() for c in dao.get_comment(flag,  user_id)])
+
+
+@bp.route('/delete-comment', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def delete_comment(flag: FlagId):
+    dao.delete_comment(flag.id)
     return resp(resp_msg.success)

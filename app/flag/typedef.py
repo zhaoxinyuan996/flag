@@ -64,3 +64,33 @@ class GetFlagByWithType(GetFlagBy, FlagType):
 class GetFlagCountByDistance(FlagType, Model):
     key: Tuple[float, float]
     distance: Optional[Tuple[float, float]]
+
+
+class FlagId(Model):
+    id: int
+
+
+class AddComment(Model):
+    flag_id: int
+    content: str
+    location: Tuple[float, float]
+
+
+class AddSubComment(AddComment):
+    root_comment_id: int
+    ask_user_id: int
+
+
+class CommentSubResp(Model):
+    id: int
+    content: str
+    prefix: str
+    comment_time: datetime
+
+
+class CommentResp(Model):
+    id: int
+    content: str
+    prefix: str
+    comment_time: datetime
+    sub_comment: List[CommentSubResp]

@@ -89,12 +89,12 @@ location_x numeric not null,
 location_y numeric not null,
 prefix text,
 comment_time timestamp not null
-)
+);
 '''
 
 d9 = '''
 CREATE INDEX flag_comment_index ON flag_comment(flag_id);
-CREATE INDEX comment_flag_comment_index ON flag_comment USING GIST (location);
+CREATE INDEX root_comment_index ON flag_comment(root_comment_id);
 '''
 
 # 黑名单
