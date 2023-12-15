@@ -5,8 +5,9 @@ from common.job import DelayJob
 from util.config import dev
 
 if __name__ == '__main__':
-    if not dev:
+    if dev:
+        app.run()
+    else:
         threading.Thread(target=DelayJob.run).start()
         app.run(host='0.0.0.0', port=8999)
 
-    app.run()

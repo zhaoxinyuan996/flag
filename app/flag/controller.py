@@ -156,5 +156,5 @@ def get_comment(flag: FlagId):
 @args_parse(FlagId)
 @custom_jwt()
 def delete_comment(flag: FlagId):
-    dao.delete_comment(flag.id)
+    dao.delete_comment(flag.id ,get_jwt_identity())
     return resp(resp_msg.success)

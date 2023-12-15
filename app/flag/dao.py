@@ -89,7 +89,7 @@ class FlagDao(Dao):
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
     def delete_comment(self, comment_id: int, user_id: int):
-        sql = 'delete from comment where (id=:comment_id or root_comment_id=:comment_id) and user_id=:user_id'
+        sql = 'delete from flag_comment where (id=:comment_id or root_comment_id=:comment_id) and user_id=:user_id'
         self.execute(sql, comment_id=comment_id, user_id=user_id)
 
     def flag_is_open(self, user_id: int, flag_id: int) -> int:
