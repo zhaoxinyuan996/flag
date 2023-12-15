@@ -3,7 +3,7 @@ import logging
 from enum import Enum, EnumMeta
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request
 from flask_jwt_extended.view_decorators import LocationType
@@ -17,12 +17,12 @@ log = logging.getLogger(__name__)
 
 
 def custom_jwt(
-    optional: bool = False,
-    fresh: bool = False,
-    refresh: bool = False,
-    locations: Optional[LocationType] = None,
-    verify_type: bool = True,
-    skip_revocation_check: bool = False,
+        optional: bool = False,
+        fresh: bool = False,
+        refresh: bool = False,
+        locations: Optional[LocationType] = None,
+        verify_type: bool = True,
+        skip_revocation_check: bool = False,
 ) -> Any:
     """重写jwt_required，dev环境下不开启dev"""
     if optional is None:
@@ -35,7 +35,9 @@ def custom_jwt(
                 optional, fresh, refresh, locations, verify_type, skip_revocation_check
             )
             return current_app.ensure_sync(fn)(*args, **kwargs)
+
         return decorator
+
     return wrapper
 
 
@@ -50,7 +52,9 @@ def args_parse(model):
             param = build_model(model, None, request.json)
             return fn(param, *args, **kwargs)
             # return current_app.ensure_sync(fn)(param, *args, **kwargs)
+
         return decorator
+
     return wrapper
 
 

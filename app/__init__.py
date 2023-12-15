@@ -4,12 +4,12 @@ from flask import Flask, Response
 from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
-
-from app.constants import message, ErrorCode
+from . import test, user, flag, message
+from app.constants import resp_msg, ErrorCode
 from app.util import resp, JSONProvider
 from util.config import uri, dev
 from util.database import db
-from . import test, user, flag
+
 
 log = logging.getLogger(__name__)
 
@@ -38,8 +38,8 @@ def init(_app: Flask):
             return resp(str(e), ErrorCode.base_error), getattr(e, 'code', 500)
 
         if isinstance(e, ValidationError):
-            return resp(message.params_error, ErrorCode.params_error), getattr(e, 'code', 500)
-        return resp(message.system_error, ErrorCode.base_error), getattr(e, 'code', 500)
+            return resp(resp_msg.params_error, ErrorCode.params_error), getattr(e, 'code', 500)
+        return resp(resp_msg.system_error, ErrorCode.base_error), getattr(e, 'code', 500)
 
 
 def create_app() -> Flask:
@@ -62,6 +62,7 @@ app = create_app()
 app.register_blueprint(test.bp)
 app.register_blueprint(user.bp)
 app.register_blueprint(flag.bp)
+app.register_blueprint(message.bp)
 db.init_app(app)
 JWTManager(app)
 init(app)

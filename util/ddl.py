@@ -97,6 +97,7 @@ CREATE INDEX flag_comment_index ON flag_comment(flag_id);
 CREATE INDEX comment_flag_comment_index ON flag_comment USING GIST (location);
 '''
 
+# 黑名单
 d10 = '''
 create table black_list(
 user_id int not null,
@@ -107,4 +108,19 @@ primary key(user_id, black_id)
 '''
 d11 = '''
 CREATE INDEX user_black_index ON black_list(user_id);
+'''
+
+# 消息
+d12 = '''
+create table message(
+id serial primary key,
+type int not null,
+send_id int not null,
+receive_id int not null,
+content text not null,
+create_time timestamp not null
+);
+'''
+d13 = '''
+CREATE INDEX receive_id_message_index ON message(receive_id);
 '''

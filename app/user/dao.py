@@ -79,12 +79,17 @@ class UserDao(Dao):
 
     def black_list(self, user_id: int) -> List[User]:
         sql = ('select u.id, u.nickname from black_list b inner join users u '
-               'on b.black_id=u.id where u.id=:user_id')
+               'on b.user_id=u.id where u.id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def exist(self, user_id: int) -> Optional[int]:
         sql = 'select 1 from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
+
+    def exist_black_list(self, user_id: int, black_id: int) -> Optional[int]:
+        sql = ('select exists (select 1 from black_list where user_id=:user_id and black_id=:black_id) '
+               'or not exists(select 1 from users where id=:user_id)')
+        return self.execute(sql, user_id=user_id, black_id=black_id)
 
 
 dao = UserDao()

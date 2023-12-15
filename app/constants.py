@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from flask import g
 from app.util import InEnum
 
@@ -35,7 +33,7 @@ class FlagType(InEnum):
     init = 0  # 初始
 
 
-class Message:
+class RespMessage:
     """
     模块+函数+信息
     """
@@ -83,6 +81,10 @@ class Message:
         'zh': '标记不存在',
         'en': 'flag not exist'
     }
+    in_black_list = {
+        'zh': '在黑名单中或用户不存在',
+        'en': 'in black list or user not exist'
+    }
     success = {
         'zh': '成功',
         'en': 'success'
@@ -104,4 +106,4 @@ class Message:
         return super().__getattribute__(item)[g.language]
 
 
-message = Message()
+resp_msg = RespMessage()
