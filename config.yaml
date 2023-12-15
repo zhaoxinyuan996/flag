@@ -1,6 +1,6 @@
 flask:
 env:
-  dev
+  test
 log_level:
   INFO
 language:
@@ -24,6 +24,14 @@ minio:
 db:
   dev:
     host: 121.40.49.158
+    port: 5432
+    db_name: flag_test
+    user: postgres
+    passwd: awesomezxy
+    max_connection_num: 100
+    max_overflow: 50
+  test:
+    host: 127.0.0.1
     port: 5432
     db_name: flag_test
     user: postgres
