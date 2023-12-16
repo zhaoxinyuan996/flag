@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from functools import partial
 from pydantic import BaseModel
 from sqlalchemy import text, Row
@@ -23,9 +24,8 @@ class SQLAlchemy(_SQLAlchemy):
             raise e
 
     def execute(self, sql: str, **kwargs) -> Optional[Tuple[RMKeyView, Any]]:
-        log.info(sql)
+        log.info(text(sql))
         response = self.session.execute(text(sql), kwargs)
-        self.session.commit()
         if response.returns_rows:
             records = response.fetchall()
             log.info(str(records))
@@ -46,8 +46,8 @@ def wrap(self, f: Callable, *args, **kwargs) -> Any:
     return None
 
 
-_ele = {int, float, str}
-_builtins = {dict, list, set, int, float, str}
+_ele = {int, float, str, datetime}
+_builtins = {dict, list, set, int, float, str, datetime}
 
 
 def build_model(t, keys, struct) -> Any:
@@ -90,7 +90,7 @@ class Dao:
 
     def __init__(self):
         for k, v in type(self).__dict__.items():
-            if not k.startswith('__'):
+            if not k.startswith('__') and isinstance(v, Callable):
                 setattr(self, k, partial(wrap, self, getattr(type(self), k)))
 
     @staticmethod

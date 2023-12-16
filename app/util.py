@@ -1,6 +1,6 @@
 """web的一些注入解析等小功能"""
 import logging
-import os.path
+from enum import Enum, EnumMeta
 from datetime import datetime
 from functools import wraps
 from typing import Any, Optional
@@ -8,25 +8,23 @@ from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic import BaseModel
+from sqlalchemy import exc
 
+from .constants import Message
 from util.config import dev
 from util.database import build_model
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, g
 
 log = logging.getLogger(__name__)
 
-_static_folder = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, 'static'))
-user_picture_folder = os.path.join(_static_folder, 'user_picture')
-flag_picture_folder = os.path.join(_static_folder, 'flag_picture')
-
 
 def custom_jwt(
-    optional: bool = False,
-    fresh: bool = False,
-    refresh: bool = False,
-    locations: Optional[LocationType] = None,
-    verify_type: bool = True,
-    skip_revocation_check: bool = False,
+        optional: bool = False,
+        fresh: bool = False,
+        refresh: bool = False,
+        locations: Optional[LocationType] = None,
+        verify_type: bool = True,
+        skip_revocation_check: bool = False,
 ) -> Any:
     """重写jwt_required，dev环境下不开启dev"""
     if optional is None:
@@ -39,16 +37,18 @@ def custom_jwt(
                 optional, fresh, refresh, locations, verify_type, skip_revocation_check
             )
             return current_app.ensure_sync(fn)(*args, **kwargs)
+
         return decorator
+
     return wrapper
 
 
-def resp(msg: str, code: int = 0, **kwargs):
+def resp(msg: Any, code: int = 0, **kwargs):
+    if isinstance(msg, Message):
+        _msg = msg[g.language]
+        code = msg.get('code', code)
+        return jsonify({'msg': _msg, 'code': code, **kwargs})
     return jsonify({'msg': msg, 'code': code, **kwargs})
-
-
-def parse(model):
-    return build_model(model, None, request.json)
 
 
 def args_parse(model):
@@ -58,8 +58,19 @@ def args_parse(model):
             param = build_model(model, None, request.json)
             return fn(param, *args, **kwargs)
             # return current_app.ensure_sync(fn)(param, *args, **kwargs)
+
         return decorator
+
     return wrapper
+
+
+def get_request_list(body) -> dict:
+    """同名的参数key用这个按照原样取出来"""
+    d = {}
+    for k in body.keys():
+        lis = body.getlist(k)
+        d[k] = lis if len(lis) > 1 else lis[0]
+    return d
 
 
 class JSONProvider(DefaultJSONProvider):
@@ -71,10 +82,15 @@ class JSONProvider(DefaultJSONProvider):
 
 
 class Model(BaseModel):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         cls = type(self)
-        base_cls = cls if cls.__base__ is Model else cls.__bases__[-1]
-        kw = {k: None for k in base_cls.__annotations__}
+        kw = {}
+        for cls in cls.__mro__[:-3]:
+            kw.update({k: None for k in cls.__annotations__})
         kw.update(kwargs)
-        [kw.pop(i) for i in args if kw[i] is None]
+        # [kw.pop(i) for i in args if kw[i] is None]
         super().__init__(**kw)
+
+    def check(self, *args):
+        for a in args:
+            assert getattr(self, a)
