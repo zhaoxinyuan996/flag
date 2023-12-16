@@ -1,6 +1,6 @@
 flask:
 env:
-  dev
+  test
 log_level:
   INFO
 language:
