@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 from psycopg2 import errors as pg_errors
-from flask import Flask, Response
+from flask import Flask, Response, send_file
 from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
@@ -73,6 +73,12 @@ app.register_blueprint(message.bp)
 db.init_app(app)
 JWTManager(app)
 init(app)
+
+
+@app.route('/')
+def root():
+    import os
+    return send_file(os.path.join(os.path.dirname(__file__), 'index.html'))
 
 
 if __name__ == '__main__':
