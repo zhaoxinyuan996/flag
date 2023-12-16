@@ -10,5 +10,4 @@ bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
 def bp_test():
     res = dao.test()
     print(res[0].dict())
-    raise
-    return str(res)
+    return '赵新源牛逼吗'

@@ -9,5 +9,5 @@ if __name__ == '__main__':
         app.run()
     else:
         threading.Thread(target=DelayJob.run).start()
-        app.run(host='0.0.0.0', port=8999)
+        app.run(host='0.0.0.0', port=80)
 
