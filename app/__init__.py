@@ -34,18 +34,16 @@ def init(_app: Flask):
 
     @_app.errorhandler(Exception)
     def error(e: BaseException):
-
-        log.exception(e)
-        if dev:
-            return resp(str(e)), getattr(e, 'code', 500)
-
         if isinstance(e, ValidationError):
             return resp(RespMsg.params_error), getattr(e, 'code', 500)
         elif isinstance(e, exc.IntegrityError):
             if isinstance(e.orig, pg_errors.UniqueViolation):
                 return resp(RespMsg.already_exist), 500
-            else:
-                return resp(RespMsg.already_exist), 500
+            return resp(RespMsg.database_error), 500
+
+        log.exception(e)
+        if dev:
+            return resp(str(e)), getattr(e, 'code', 500)
         return resp(RespMsg.system_error), getattr(e, 'code', 500)
 
 

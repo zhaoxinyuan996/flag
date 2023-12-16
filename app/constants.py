@@ -80,6 +80,7 @@ class RespMsg:
     database_error = Message({
         'zh': '数据库错误',
         'en': 'database error',
+        'code': -253
     })
     too_long = Message({
         'zh': '长度超限',

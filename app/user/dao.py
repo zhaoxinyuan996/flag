@@ -43,7 +43,7 @@ class UserDao(Dao):
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
     def follow_remove(self, fans_id: int, star_id: int):
-        sql = 'delete from where fans_id=:fans_id, star_id=:star_id'
+        sql = 'delete from follow where fans_id=:fans_id and star_id=:star_id'
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
     def follow_star(self, user_id: int) -> List[User]:
