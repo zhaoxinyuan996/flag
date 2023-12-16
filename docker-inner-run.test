@@ -1,0 +1,4 @@
+# bin/bash
+cd ~/flag-backend
+git pull
+python main.py
