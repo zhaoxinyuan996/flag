@@ -71,7 +71,7 @@ CREATE INDEX type_index ON flag(type);
 CREATE INDEX is_open_index ON flag(is_open);
 CREATE INDEX user_id_index ON flag(user_id);
 CREATE INDEX flag_x_index ON flag(location_x);
-CREATE INDEX flag_x_index ON flag(location_y);
+CREATE INDEX flag_y_index ON flag(location_y);
 '''
 
 # 评论表

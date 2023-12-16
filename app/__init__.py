@@ -1,11 +1,13 @@
 import logging
 from datetime import timedelta
+from psycopg2 import errors as pg_errors
 from flask import Flask, Response
 from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
+from sqlalchemy import exc
 from . import test, user, flag, message
-from app.constants import resp_msg, ErrorCode
+from app.constants import RespMsg
 from app.util import resp, JSONProvider
 from util.config import uri, dev
 from util.database import db
@@ -35,11 +37,16 @@ def init(_app: Flask):
 
         log.exception(e)
         if dev:
-            return resp(str(e), ErrorCode.base_error), getattr(e, 'code', 500)
+            return resp(str(e)), getattr(e, 'code', 500)
 
         if isinstance(e, ValidationError):
-            return resp(resp_msg.params_error, ErrorCode.params_error), getattr(e, 'code', 500)
-        return resp(resp_msg.system_error, ErrorCode.base_error), getattr(e, 'code', 500)
+            return resp(RespMsg.params_error), getattr(e, 'code', 500)
+        elif isinstance(e, exc.IntegrityError):
+            if isinstance(e.orig, pg_errors.UniqueViolation):
+                return resp(RespMsg.already_exist), 500
+            else:
+                return resp(RespMsg.already_exist), 500
+        return resp(RespMsg.system_error), getattr(e, 'code', 500)
 
 
 def create_app() -> Flask:

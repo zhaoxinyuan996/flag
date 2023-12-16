@@ -3,15 +3,17 @@ import logging
 from enum import Enum, EnumMeta
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional, Literal
+from typing import Any, Optional
 from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic import BaseModel
+from sqlalchemy import exc
 
+from .constants import Message
 from util.config import dev
 from util.database import build_model
-from flask import request, jsonify, current_app
+from flask import request, jsonify, current_app, g
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +44,10 @@ def custom_jwt(
 
 
 def resp(msg: Any, code: int = 0, **kwargs):
+    if isinstance(msg, Message):
+        _msg = msg[g.language]
+        code = msg.get('code', code)
+        return jsonify({'msg': _msg, 'code': code, **kwargs})
     return jsonify({'msg': msg, 'code': code, **kwargs})
 
 
@@ -88,12 +94,3 @@ class Model(BaseModel):
     def check(self, *args):
         for a in args:
             assert getattr(self, a)
-
-
-class InEnumMeta(EnumMeta):
-    def __contains__(cls, member):
-        return member in cls._value2member_map_
-
-
-class InEnum(Enum, metaclass=EnumMeta):
-    ...

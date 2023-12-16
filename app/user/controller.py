@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import partial
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
-from app.constants import resp_msg, allow_picture_type, user_picture_size, UserLevel, FileType
+from app.constants import RespMsg, allow_picture_type, user_picture_size, UserLevel, FileType
 from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
@@ -79,17 +79,13 @@ def exists_black_list(user_id: int, black_id: int) -> bool:
 def sign_up(user: SignUp):
     # 密码强度，密码强度正则，最少6位，包括至少1个大写字母，1个小写字母，1个数字
     if len(user.username) > 16 or not username_pattern.match(user.username):
-        return resp(resp_msg.user_sign_up_username_weak, -1)
+        return resp(RespMsg.user_sign_up_username_weak, -1)
     if len(user.password) > 16 or not password_pattern.match(user.password):
-        return resp(resp_msg.user_sign_up_password_weak, -1)
+        return resp(RespMsg.user_sign_up_password_weak, -1)
 
     user.password = generate_password_hash(user.password, method='pbkdf2:sha256')
-    try:
-        user_id = dao.sign_up(user.username, user.password)
-    except exc.IntegrityError:
-        return resp(resp_msg.user_sign_up_already_exist, -1)
-    else:
-        return resp(resp_msg.user_sign_up_success, user_id=user_id)
+    user_id = dao.sign_up(user.username, user.password, user.nickname)
+    return resp(RespMsg.user_sign_up_success, user_id=user_id)
 
 
 @bp.route('/sign-in', methods=['post'])
@@ -97,14 +93,14 @@ def sign_up(user: SignUp):
 def sign_in(user: SignIn):
     res = dao.sign_in(user.username)
     if not res:
-        return resp(resp_msg.user_sign_in_not_exist, -1)
+        return resp(RespMsg.user_sign_in_not_exist, -1)
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
         DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
-        return resp(resp_msg.user_sign_in_success, user_id=user_id, access_token=access_token)
+        return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
-        return resp(resp_msg.user_sign_in_password_error, -1)
+        return resp(RespMsg.user_sign_in_password_error, -1)
 
 
 @bp.route('/refresh-jwt', methods=['post'])
@@ -114,7 +110,7 @@ def refresh_kwt():
     user_id = get_jwt_identity()
     access_token = create_access_token(identity=user_id)
     DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
-    return resp(resp_msg.user_sign_in_success, access_token=access_token)
+    return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 
 @bp.route('/user-info', methods=['post'])
@@ -128,7 +124,7 @@ def user_info():
     else:
         res = dao.user_info(get_jwt_identity())
     if not res:
-        return resp(resp_msg.user_sign_in_not_exist, -1)
+        return resp(RespMsg.user_sign_in_not_exist, -1)
     return resp(res.model_dump(include={
         'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline',
         'block_deadline', 'belong', 'location'
@@ -143,14 +139,14 @@ def set_profile_picture():
     level = get_user_level()
     suffix = request.files['pic'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
-        return resp(resp_msg.user_picture_format_error + str(allow_picture_type), -1)
+        return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
     b = request.files['pic'].stream.read()
     if len(b) > user_picture_size:
-        return resp(resp_msg.too_large, -1)
+        return resp(RespMsg.too_large, -1)
     file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, level == UserLevel.vip)
     url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
     dao.set_profile_picture(user_id, url)
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/get-profile-picture', methods=['post'])
@@ -158,7 +154,7 @@ def set_profile_picture():
 def get_profile_picture():
     """获取头像"""
     url = file_minio.get_file_url(FileType.head_pic, str(get_jwt_identity()), origin=False)
-    return resp(resp_msg.success, url=url)
+    return resp(RespMsg.success, url=url)
 
 
 @bp.route('/set-nickname', methods=['post'])
@@ -167,9 +163,9 @@ def get_profile_picture():
 def set_nickname(user_nickname: SetUserNickname):
     """设置昵称"""
     if len(user_nickname.nickname) > 16:
-        return resp(resp_msg.too_long, -1)
+        return resp(RespMsg.too_long, -1)
     dao.set_user_nickname(get_jwt_identity(), user_nickname.nickname)
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/set-signature', methods=['post'])
@@ -178,9 +174,9 @@ def set_nickname(user_nickname: SetUserNickname):
 def set_signature(user_signature: SetUserSignature):
     """设置签名"""
     if len(user_signature.signature) > 50:
-        return resp(resp_msg.too_long, -1)
+        return resp(RespMsg.too_long, -1)
     dao.set_user_signature(get_jwt_identity(), user_signature.signature)
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/follow-add', methods=['post'])
@@ -188,11 +184,8 @@ def set_signature(user_signature: SetUserSignature):
 @custom_jwt()
 def follow_add(user: UserId):
     """关注"""
-    try:
-        dao.follow_add(get_jwt_identity(), user.id)
-    except exc.IntegrityError:
-        return resp(resp_msg.success)
-    return resp(resp_msg.success)
+    dao.follow_add(get_jwt_identity(), user.id)
+    return resp(RespMsg.success)
 
 
 @bp.route('/follow-remove', methods=['post'])
@@ -201,7 +194,7 @@ def follow_add(user: UserId):
 def follow_remove(user: UserId):
     """取关"""
     dao.follow_remove(get_jwt_identity(), user.id)
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/follow-star', methods=['post'])
@@ -225,7 +218,7 @@ def follow_fans():
 def sign_out():
     """销号"""
     dao.sign_out(get_jwt_identity())
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/sign-out-off', methods=['post'])
@@ -233,7 +226,7 @@ def sign_out():
 def sign_out_off():
     """取消销号"""
     dao.sign_out_off(get_jwt_identity())
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/set-black', methods=['post'])
@@ -242,10 +235,10 @@ def sign_out_off():
 def set_black(black: UserId):
     """拉黑"""
     if not dao.exist(black.id):
-        return resp(resp_msg.user_sign_in_not_exist, -1)
+        return resp(RespMsg.user_sign_in_not_exist, -1)
 
     dao.set_black(get_jwt_identity(), black.id)
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/unset-black', methods=['post'])
@@ -254,7 +247,7 @@ def set_black(black: UserId):
 def unset_black(black: UserId):
     """解除拉黑"""
     dao.unset_black(get_jwt_identity(), black.id)
-    return resp(resp_msg.success)
+    return resp(RespMsg.success)
 
 
 @bp.route('/black-list', methods=['post'])

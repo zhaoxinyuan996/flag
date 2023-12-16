@@ -4,11 +4,12 @@ from util.database import Dao
 
 
 class UserDao(Dao):
-    def sign_up(self, username: str, password: str) -> int:
-        sql = ('insert into users (username, password, create_time, vip_deadline, block_deadline, alive_deadline) '
-               "values"
-               "(:username, :password, current_timestamp, 'infinity', '-infinity', current_timestamp) returning id")
-        return self.execute(sql, username=username, password=password)
+    def sign_up(self, username: str, password: str, nickname: str) -> int:
+        sql = ('insert into users (username, password, nickname, create_time, vip_deadline, block_deadline, '
+               'alive_deadline) values'
+               "(:username, :password, :nickname, current_timestamp, 'infinity', '-infinity', current_timestamp) "
+               "returning id")
+        return self.execute(sql, username=username, password=password, nickname=nickname)
 
     def sign_in(self, username: str) -> Optional[Tuple[int, str]]:
         sql = 'select id, password from users where username=:username'
