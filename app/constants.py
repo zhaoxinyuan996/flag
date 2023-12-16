@@ -1,4 +1,5 @@
 from enum import EnumMeta, Enum
+from typing import Union
 
 
 class InEnumMeta(EnumMeta):
@@ -57,9 +58,10 @@ class RespMsg:
         'zh': '密码强度不足',
         'en': 'password is too weak'
     })
-    user_sign_in_not_exist = Message({
+    user_not_exist = Message({
         'zh': '用户不存在',
-        'en': 'user not exist'
+        'en': 'user not exist',
+        'code': -252
     })
     user_sign_in_success = Message({
         'zh': '登录成功',
@@ -116,3 +118,8 @@ class RespMsg:
         'en': 'server error',
         'code': -255
     })
+
+
+class AppError(Exception):
+    def __init__(self, msg: Union[Message, str]):
+        self.msg = msg
