@@ -64,7 +64,7 @@ class UserDao(Dao):
         sql = "delete from sign_out_users where user_id=:user_id"
         return self.execute(sql, user_id=user_id)
 
-    def get_level(self, user_id: int) -> User:
+    def get_level(self, user_id: int) -> Optional[User]:
         sql = 'select vip_deadline, block_deadline from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
