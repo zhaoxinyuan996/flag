@@ -7,7 +7,7 @@ from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
 from sqlalchemy import exc
 from . import test, user, flag, message
-from app.constants import RespMsg
+from app.constants import RespMsg, AppError
 from app.util import resp, JSONProvider
 from util.config import uri, dev
 from util.database import db
@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 
 # proxy_info = LocalProxy(ContextVar("flask.request_ctx"), 'info')
+e_code = 500
 
 
 def init(_app: Flask):
@@ -35,16 +36,17 @@ def init(_app: Flask):
     @_app.errorhandler(Exception)
     def error(e: BaseException):
         if isinstance(e, ValidationError):
-            return resp(RespMsg.params_error), getattr(e, 'code', 500)
+            return resp(RespMsg.params_error), getattr(e, 'code', e_code)
         elif isinstance(e, exc.IntegrityError):
             if isinstance(e.orig, pg_errors.UniqueViolation):
-                return resp(RespMsg.already_exist), 500
-            return resp(RespMsg.database_error), 500
-
+                return resp(RespMsg.already_exist), e_code
+            return resp(RespMsg.database_error), e_code
+        elif isinstance(e, AppError):
+            return resp(e.msg), e_code
         log.exception(e)
         if dev:
-            return resp(str(e)), getattr(e, 'code', 500)
-        return resp(RespMsg.system_error), getattr(e, 'code', 500)
+            return resp(str(e)), getattr(e, 'code', e_code)
+        return resp(RespMsg.system_error), getattr(e, 'code', e_code)
 
 
 def create_app() -> Flask:

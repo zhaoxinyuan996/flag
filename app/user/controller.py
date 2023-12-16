@@ -3,13 +3,12 @@ import os
 import re
 import random
 import requests
-from sqlalchemy import exc
 from app.user.dao import dao
 from datetime import datetime
 from functools import partial
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
-from app.constants import RespMsg, allow_picture_type, user_picture_size, UserLevel, FileType
+from app.constants import RespMsg, allow_picture_type, user_picture_size, UserLevel, FileType, AppError
 from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
@@ -31,6 +30,8 @@ def get_user_level() -> UserLevel:
     """获取用户级别，后面用redis存"""
     user_id = get_jwt_identity()
     user = dao.get_level(user_id)
+    if not user:
+        raise AppError(RespMsg.user_not_exist)
     if user.block_deadline > datetime.now():
         level = UserLevel.block
     elif user.vip_deadline > datetime.now():
@@ -93,7 +94,7 @@ def sign_up(user: SignUp):
 def sign_in(user: SignIn):
     res = dao.sign_in(user.username)
     if not res:
-        return resp(RespMsg.user_sign_in_not_exist, -1)
+        return resp(RespMsg.user_not_exist, -1)
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
@@ -124,7 +125,7 @@ def user_info():
     else:
         res = dao.user_info(get_jwt_identity())
     if not res:
-        return resp(RespMsg.user_sign_in_not_exist, -1)
+        return resp(RespMsg.user_not_exist, -1)
     return resp(res.model_dump(include={
         'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline',
         'block_deadline', 'belong', 'location'
@@ -235,7 +236,7 @@ def sign_out_off():
 def set_black(black: UserId):
     """拉黑"""
     if not dao.exist(black.id):
-        return resp(RespMsg.user_sign_in_not_exist, -1)
+        return resp(RespMsg.user_not_exist, -1)
 
     dao.set_black(get_jwt_identity(), black.id)
     return resp(RespMsg.success)
