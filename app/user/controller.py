@@ -17,7 +17,7 @@ from util.database import db
 from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
-bp = Blueprint(module_name, __name__, url_prefix=f'/{module_name}')
+bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 
 username_pattern = re.compile(r'^[a-zA-Z0-9_-]{4,16}$')
