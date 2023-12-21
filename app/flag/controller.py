@@ -1,3 +1,4 @@
+import json
 import os
 import logging
 from typing import List, Tuple, Union
@@ -51,6 +52,8 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
     _flag = get_request_list(request.form)
     _flag['user_id'] = get_jwt_identity()
     _flag['pictures'] = []
+    if isinstance(_flag['location'], str):
+        _flag['location'] = json.loads(_flag['location'])
     flag = model(**_flag)
 
     datas = _build(flag.content)

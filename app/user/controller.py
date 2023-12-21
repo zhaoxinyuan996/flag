@@ -9,16 +9,17 @@ from functools import partial
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
 from app.constants import RespMsg, allow_picture_type, user_picture_size, UserLevel, FileType, AppError
-from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId
+from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId, SignWechat
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
+from util.config import config
 from util.database import db
 from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
-
+wechat_config = config['wechat-miniapp']
 
 username_pattern = re.compile(r'^[a-zA-Z0-9_-]{4,16}$')
 password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
@@ -53,6 +54,7 @@ def get_location(user_id: int, ip: str):
             return data[key]
         except requests.RequestException:
             return None
+
     apis = (
         ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
         ('http://www.ip508.com/ip?q=', 'addr'),
@@ -102,6 +104,20 @@ def sign_in(user: SignIn):
         return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
         return resp(RespMsg.user_sign_in_password_error, -1)
+
+
+@bp.route('/sign-up-wechat', methods=['post'])
+@args_parse(SignWechat)
+def sign_on_wechat(wechat: SignWechat):
+    url = ("https://api.weixin.qq.com/sns/jscode2session?"
+           f"appid={wechat_config['app_id']}&secret={wechat_config['app_secret']}&"
+           f"js_code={wechat.code}&grant_type=authorization_code")
+    res = requests.get(url)
+    open_id = res.json()['openid']
+    user_id = dao.wechat_exist(open_id) or dao.add_wechat_user(open_id, wechat.nickname)
+
+    access_token = create_access_token(identity=user_id)
+    return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
 
 
 @bp.route('/refresh-jwt', methods=['post'])

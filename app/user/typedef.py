@@ -36,6 +36,12 @@ class SignUp(User):
     nickname: str
 
 
+class SignWechat(Model):
+    code: str
+    nickname: str
+    profile_picture: str
+
+
 class SignIn(User):
     username: str
     password: str

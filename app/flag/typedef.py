@@ -9,6 +9,7 @@ class Flag(Model):
     user_id: Optional[int]
     location_x: Optional[float]
     location_y: Optional[float]
+    name: Optional[str]
     content: Optional[str]
     type: Optional[int]
     is_open: Optional[int]
@@ -32,6 +33,7 @@ class Comment(Model):
 class AddFlag(Flag):
     user_id: int
     location: Tuple[float, float]
+    name: str
     content: str
 
     type: int

@@ -3,11 +3,14 @@ from app.user.typedef import User
 from util.database import Dao
 
 
+vip_deadline = 'infinity'
+
+
 class UserDao(Dao):
     def sign_up(self, username: str, password: str, nickname: str) -> int:
         sql = ('insert into users (username, password, nickname, create_time, vip_deadline, block_deadline, '
-               'alive_deadline) values'
-               "(:username, :password, :nickname, current_timestamp, 'infinity', '-infinity', current_timestamp) "
+               'alive_deadline) values(:username, :password, :nickname, current_timestamp, '
+               f"{vip_deadline}', '-infinity', current_timestamp) "
                "returning id")
         return self.execute(sql, username=username, password=password, nickname=nickname)
 
@@ -17,7 +20,7 @@ class UserDao(Dao):
 
     def user_info(self, user_id: int) -> Optional[User]:
         sql = ('select id, username, nickname, profile_picture, signature, '
-               'vip_deadline, block_deadline, belong, location_x, location_y '
+               f"'{vip_deadline}', block_deadline, belong, location_x, location_y "
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
@@ -91,6 +94,17 @@ class UserDao(Dao):
         sql = ('select exists (select 1 from black_list where user_id=:user_id and black_id=:black_id) '
                'or not exists(select 1 from users where id=:user_id)')
         return self.execute(sql, user_id=user_id, black_id=black_id)
+
+    def wechat_exist(self, wechat_id: int) -> Optional[int]:
+        sql = 'select id from users where wechat_id=:wechat_id'
+        return self.execute(sql, wechat_id=wechat_id)
+
+    def add_wechat_user(self, wechat_id: str, nickname: str) -> int:
+        sql = ('insert into users (wechat_id, nickname, create_time, vip_deadline, block_deadline, '
+               'alive_deadline) values'
+               f"(:wechat_id, :nickname, current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) "
+               "returning id")
+        return self.execute(sql, wechat_id=wechat_id, nickname=nickname)
 
 
 dao = UserDao()

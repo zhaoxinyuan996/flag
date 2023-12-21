@@ -8,8 +8,8 @@ create table users (
 id serial primary key, 
 
 nickname text not null,
-username text  not null, 
-password text not null,
+username text, 
+password text,
 phone int,
 sex int,
 
@@ -28,7 +28,10 @@ alive_deadline timestamp,
 belong text,
 location_x numeric,
 location_y numeric,
-UNIQUE(username)
+UNIQUE(username),
+UNIQUE(wechat_id),
+UNIQUE(google_id),
+UNIQUE(apple_id)
 );
 '''
 
