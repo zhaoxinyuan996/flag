@@ -38,7 +38,6 @@ class User(Model):
 class SignUp(User):
     username: str
     password: str
-    nickname: _NICKNAME
 
 
 class SignWechat(Model):

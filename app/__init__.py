@@ -35,6 +35,7 @@ def init(_app: Flask):
 
     @_app.errorhandler(Exception)
     def error(e: BaseException):
+        log.exception(e)
         if isinstance(e, ValidationError):
             return resp(RespMsg.params_error), getattr(e, 'code', e_code)
         elif isinstance(e, exc.IntegrityError):
@@ -43,7 +44,6 @@ def init(_app: Flask):
             return resp(RespMsg.database_error), e_code
         elif isinstance(e, AppError):
             return resp(e.msg), e_code
-        log.exception(e)
         if dev:
             return resp(str(e)), getattr(e, 'code', e_code)
         return resp(RespMsg.system_error), getattr(e, 'code', e_code)

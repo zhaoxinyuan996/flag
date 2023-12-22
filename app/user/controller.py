@@ -113,8 +113,14 @@ def sign_on_wechat(wechat: SignWechat):
            f"appid={wechat_config['app_id']}&secret={wechat_config['app_secret']}&"
            f"js_code={wechat.code}&grant_type=authorization_code")
     res = requests.get(url)
-    open_id = res.json()['openid']
-    user_id = dao.wechat_exist(open_id) or dao.add_wechat_user(open_id, wechat.nickname)
+    open_id = str(res.json()['openid'])
+    user_id = dao.wechat_exist(open_id)
+    if user_id is None:
+        from app import app
+        with app.app_context():
+            user_id = dao.third_part_sigh_up_third('wechat', open_id, '')
+            dao.third_part_sigh_up_user(user_id, wechat.nickname)
+            db.session.commit()
 
     access_token = create_access_token(identity=user_id)
     return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)

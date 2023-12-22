@@ -8,12 +8,10 @@ create table users (
 id uuid primary key, 
 
 nickname text not null,
-username text not null, 
-password text not null,
+username text, 
+password text,
 phone int,
 is_man bool,
-
-wechat_id text,
 
 signature text,
 profile_picture text,
@@ -28,10 +26,25 @@ belong text,
 location geometry,
 extend1 text,
 extend2 text,
-extend3 text,
-UNIQUE(username),
-UNIQUE(wechat_id)
+extend3 text
 );
+
+create index username_index on users using hash(username);
+'''
+
+# 第三方用户
+d2_1 = '''
+create table third_users (
+id uuid primary key,
+login_type text not null,
+open_id text not null,
+access_token text,
+extend1 text,
+extend2 text,
+extend3 text
+);
+
+CREATE INDEX login_type_index on third_users (login_type) WHERE login_type='wechat';
 '''
 
 # 关注表
