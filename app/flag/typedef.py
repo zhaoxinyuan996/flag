@@ -1,16 +1,21 @@
 from datetime import datetime
+from pydantic import constr
 from typing import Optional, Tuple, List, Union
+from app.typedef import UUID, LOCATION, REQ_LOCATION
 from app.util import Model
 from typedef import Order
 
 
+_FLAG_CONTENT = constr(max_length=300)
+_COMMENT_CONTENT = constr(max_length=100)
+
+
 class Flag(Model):
-    id: Optional[int]
+    id: Optional[UUID]
     user_id: Optional[int]
-    location_x: Optional[float]
-    location_y: Optional[float]
+    location: Optional[LOCATION]
     name: Optional[str]
-    content: Optional[str]
+    content: Optional[_FLAG_CONTENT]
     type: Optional[int]
     is_open: Optional[int]
     create_time: Optional[datetime]
@@ -22,19 +27,18 @@ class Comment(Model):
     id: Optional[int]
     flag_id: Optional[int]
     user_id: Optional[int]
-    content: Optional[str]
+    content: Optional[_COMMENT_CONTENT]
     root_comment_id: Optional[int]
-    location_x: Optional[float]
-    location_y: Optional[float]
+    location: Optional[LOCATION]
     prefix: Optional[str]
     comment_time: Optional[datetime]
 
 
 class AddFlag(Flag):
     user_id: int
-    location: Tuple[float, float]
+    location: REQ_LOCATION
     name: str
-    content: str
+    content: _FLAG_CONTENT
 
     type: int
     is_open: int
@@ -42,7 +46,7 @@ class AddFlag(Flag):
 
 
 class UpdateFlag(AddFlag):
-    id: int
+    id: UUID
 
 
 class GetFlagBy(Order):
@@ -56,7 +60,7 @@ class FlagType(Model):
 
 
 class SetFlagType(FlagType):
-    id: int
+    id: UUID
 
 
 class GetFlagByWithType(GetFlagBy, FlagType):
@@ -69,13 +73,13 @@ class GetFlagCountByDistance(FlagType, Model):
 
 
 class FlagId(Model):
-    id: int
+    id: UUID
 
 
 class AddComment(Model):
     flag_id: int
-    content: str
-    location: Tuple[float, float]
+    content: _COMMENT_CONTENT
+    location: REQ_LOCATION
 
 
 class AddSubComment(AddComment):
@@ -85,14 +89,14 @@ class AddSubComment(AddComment):
 
 class CommentSubResp(Model):
     id: int
-    content: str
+    content: _COMMENT_CONTENT
     prefix: str
     comment_time: datetime
 
 
 class CommentResp(Model):
     id: int
-    content: str
+    content: _COMMENT_CONTENT
     prefix: str
     comment_time: datetime
     sub_comment: List[CommentSubResp]

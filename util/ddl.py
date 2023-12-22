@@ -18,6 +18,7 @@ wechat_id text,
 signature text,
 profile_picture text,
 background_picture text,
+flag_num int,
 
 create_time timestamp not null,
 vip_deadline timestamp,
