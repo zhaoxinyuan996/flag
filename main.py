@@ -2,7 +2,7 @@ import threading
 
 from app import app
 from common.job import DelayJob
-from util.config import dev
+from util.config import dev, config
 
 if __name__ == '__main__':
     if dev:
@@ -10,5 +10,5 @@ if __name__ == '__main__':
         app.run()
     else:
         threading.Thread(target=DelayJob.run).start()
-        app.run(host='0.0.0.0', port=80)
+        app.run(host=config['web']['ip'], port=config['web']['port'])
 
