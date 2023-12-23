@@ -1,6 +1,5 @@
 """web的一些注入解析等小功能"""
 import logging
-from enum import Enum, EnumMeta
 from datetime import datetime
 from functools import wraps
 from typing import Any, Optional
@@ -8,14 +7,19 @@ from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic import BaseModel
-from sqlalchemy import exc
 
+from .base_dao import build_model
 from .constants import Message
 from util.config import dev
-from util.database import build_model
+
 from flask import request, jsonify, current_app, g
 
 log = logging.getLogger(__name__)
+
+
+class JwtConfig:
+    jwt_access_minutes = 30
+    jwt_refresh_minutes = 1440
 
 
 def custom_jwt(
@@ -27,15 +31,13 @@ def custom_jwt(
         skip_revocation_check: bool = False,
 ) -> Any:
     """重写jwt_required，dev环境下不开启dev"""
-    if optional is None:
-        optional = dev
+    if dev:
+        optional = False
 
     def wrapper(fn):
         @wraps(fn)
         def decorator(*args, **kwargs):
-            verify_jwt_in_request(
-                optional, fresh, refresh, locations, verify_type, skip_revocation_check
-            )
+            verify_jwt_in_request(optional, fresh, refresh, locations, verify_type, skip_revocation_check)
             return current_app.ensure_sync(fn)(*args, **kwargs)
 
         return decorator

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from sqlalchemy import exc
 from . import test, user, flag, message
 from app.constants import RespMsg, AppError
-from app.util import resp, JSONProvider
+from app.util import resp, JSONProvider, JwtConfig
 from util.config import uri, dev
 from util.database import db
 
@@ -57,9 +57,13 @@ def create_app() -> Flask:
     # _app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True  # flask2.3被移除
     # _app.config['SQLALCHEMY_ECHO'] = True
     _app.config["JWT_SECRET_KEY"] = "yes?"  # 设置 jwt 的秘钥
-    _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=9999)
+    if dev:
+        _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=99999)
+    else:
+        # 过期时间
+        _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_access_minutes)
     # 设置刷新JWT过期时间
-    _app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
+    _app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_refresh_minutes)
     _app.json = JSONProvider(_app)
     return _app
 

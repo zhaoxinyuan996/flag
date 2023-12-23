@@ -9,7 +9,7 @@ from functools import partial
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse
 from app.constants import RespMsg, allow_picture_type, user_picture_size, UserLevel, FileType, AppError
-from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId, SignWechat
+from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
@@ -108,27 +108,30 @@ def sign_in(user: SignIn):
 
 @bp.route('/sign-up-wechat', methods=['post'])
 @args_parse(SignWechat)
-def sign_on_wechat(wechat: SignWechat):
+def sign_up_wechat(wechat: SignWechat):
     url = ("https://api.weixin.qq.com/sns/jscode2session?"
            f"appid={wechat_config['app_id']}&secret={wechat_config['app_secret']}&"
            f"js_code={wechat.code}&grant_type=authorization_code")
     res = requests.get(url)
     open_id = str(res.json()['openid'])
     user_id = dao.wechat_exist(open_id)
+    new = False
     if user_id is None:
+        new = True
         from app import app
         with app.app_context():
             user_id = dao.third_part_sigh_up_third('wechat', open_id, '')
-            dao.third_part_sigh_up_user(user_id, wechat.nickname)
+            dao.third_part_sigh_up_user(user_id)
             db.session.commit()
 
     access_token = create_access_token(identity=user_id)
-    return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
+    print(access_token)
+    return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
 @bp.route('/refresh-jwt', methods=['post'])
 @custom_jwt()
-def refresh_kwt():
+def refresh_jwt():
     """更新jwt，要结合更多的redis？用户状态控制？"""
     user_id = get_jwt_identity()
     access_token = create_access_token(identity=user_id)
@@ -141,7 +144,7 @@ def refresh_kwt():
 def user_info():
     # 查看别人的信息
     if request.data:
-        user_id = int(request.json['id'])
+        user_id = str(request.json['id'])
         res = dao.user_info(user_id)
     # 查看自己的信息
     else:
@@ -149,14 +152,14 @@ def user_info():
     if not res:
         return resp(RespMsg.user_not_exist, -1)
     return resp(res.model_dump(include={
-        'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline',
+        'id', 'nickname', 'username', 'signature', 'avatar_url', 'vip_deadline',
         'block_deadline', 'belong', 'location'
     }))
 
 
-@bp.route('/set-profile-picture', methods=['post'])
+@bp.route('/upload-avatar', methods=['post'])
 @custom_jwt()
-def set_profile_picture():
+def upload_avatar():
     """设置头像"""
     user_id = get_jwt_identity()
     level = get_user_level()
@@ -168,37 +171,22 @@ def set_profile_picture():
         return resp(RespMsg.too_large, -1)
     file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, level == UserLevel.vip)
     url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
-    dao.set_profile_picture(user_id, url)
+    dao.set_userinfo(user_id, {'avatar_url': url})
     return resp(RespMsg.success)
 
 
-@bp.route('/get-profile-picture', methods=['post'])
+@bp.route('/set-userinfo', methods=['post'])
+@args_parse(SetUserinfo)
 @custom_jwt()
-def get_profile_picture():
-    """获取头像"""
-    url = file_minio.get_file_url(FileType.head_pic, str(get_jwt_identity()), origin=False)
-    return resp(RespMsg.success, url=url)
-
-
-@bp.route('/set-nickname', methods=['post'])
-@args_parse(SetUserNickname)
-@custom_jwt()
-def set_nickname(user_nickname: SetUserNickname):
-    """设置昵称"""
-    if len(user_nickname.nickname) > 16:
-        return resp(RespMsg.too_long, -1)
-    dao.set_user_nickname(get_jwt_identity(), user_nickname.nickname)
-    return resp(RespMsg.success)
-
-
-@bp.route('/set-signature', methods=['post'])
-@args_parse(SetUserSignature)
-@custom_jwt()
-def set_signature(user_signature: SetUserSignature):
-    """设置签名"""
-    if len(user_signature.signature) > 50:
-        return resp(RespMsg.too_long, -1)
-    dao.set_user_signature(get_jwt_identity(), user_signature.signature)
+def set_userinfo(set_: SetUserinfo):
+    """设置用户信息，可以多个信息一起设置"""
+    info = set_.model_dump()
+    if not any(info.values()):
+        return resp(RespMsg.success)
+    # pydantic和url
+    if 'avatar' in info:
+        info['avatar'] = str(info['avatar'])
+    dao.set_userinfo(get_jwt_identity(), info)
     return resp(RespMsg.success)
 
 
@@ -225,7 +213,8 @@ def follow_remove(user: UserId):
 def follow_star():
     """我的关注"""
     stars = dao.follow_star(get_jwt_identity())
-    return resp([i.model_dump(include={'id', 'nickname', 'username', 'signature'}) for i in stars])
+    return resp([i.model_dump(include={
+        'id', 'nickname', 'signature', 'vip_deadline', 'block_deadline'}) for i in stars])
 
 
 @bp.route('/follow-fans', methods=['post'])

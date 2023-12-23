@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import constr
-from app.typedef import UUID, LOCATION
+from uuid import UUID
+
+from pydantic import constr, conint
+from app.base_typedef import LOCATION, URL
 from app.util import Model
 
 
@@ -23,8 +25,7 @@ class User(Model):
     apple_id: Optional[str]
 
     signature: Optional[_SIGNATURE]
-    profile_picture: Optional[str]
-    background_picture: Optional[str]
+    avatar_url: Optional[str]
 
     create_time: Optional[datetime]
     vip_deadline: Optional[datetime]
@@ -42,8 +43,6 @@ class SignUp(User):
 
 class SignWechat(Model):
     code: str
-    nickname: _NICKNAME
-    profile_picture: str
 
 
 class SignIn(User):
@@ -55,12 +54,12 @@ class UserId(User):
     id: UUID
 
 
-class SetUserNickname(User):
-    nickname: _NICKNAME
-
-
-class SetUserSignature(User):
-    signature: _SIGNATURE
+class SetUserinfo(Model):
+    nickname: Optional[_NICKNAME]
+    is_man: Optional[bool]
+    phone: Optional[conint(lt=19999999999)]
+    signature: Optional[_SIGNATURE]
+    avatar_url: Optional[URL]
 
 
 if __name__ == '__main__':

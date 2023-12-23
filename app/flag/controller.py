@@ -7,8 +7,8 @@ from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
 from app.user.controller import get_user_level
 from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type, RespMsg
-from app.flag.typedef import AddFlag, GetFlagBy, GetFlagCountByDistance, GetFlagByWithType, UpdateFlag, SetFlagType, \
-    AddComment, AddSubComment, FlagId
+from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
+    AddComment, AddSubComment, FlagId, GetFlagByMap, GetFlagByMapCount
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
 from util.file_minio import file_minio
@@ -99,20 +99,18 @@ def get_flag(get: GetFlagBy):
     return resp(RespMsg.system_error)
 
 
-@bp.route('/get-flag-type', methods=['post'])
-@args_parse(GetFlagByWithType)
+@bp.route('/get-flag-by-map', methods=['post'])
+@args_parse(GetFlagByMap)
 @custom_jwt()
-def get_flag_type(get: GetFlagByWithType):
-    if get.by == 'location':
-        return resp([f.model_dump() for f in dao.get_flag_by_location(get_jwt_identity(), get)])
-    return resp(RespMsg.system_error)
+def get_flag_by_map(get: GetFlagByMap):
+    return resp([f.model_dump() for f in dao.get_flag_by_map(get_jwt_identity(), get)])
 
 
-@bp.route('/get-flag-count', methods=['post'])
-@args_parse(GetFlagCountByDistance)
+@bp.route('/get-flag-by-map-count', methods=['post'])
+@args_parse(GetFlagByMapCount)
 @custom_jwt()
-def get_flag_count(get: GetFlagCountByDistance):
-    return resp(dao.get_flag_by_location_count(get_jwt_identity(), get))
+def get_flag_by_map_count(get: GetFlagByMapCount):
+    return resp(dao.get_flag_by_map_count(get_jwt_identity(), get))
 
 
 @bp.route('/set-flag-type', methods=['post'])
@@ -127,7 +125,10 @@ def set_flag_type(set_: SetFlagType):
 @args_parse(AddComment)
 @custom_jwt()
 def add_comment(add_: AddComment):
-    dao.add_comment(add_.flag_id, get_jwt_identity(), add_.content, add_.location, None, None)
+    user_id = get_jwt_identity()
+    if not dao.flag_exist(user_id, add_.flag_id):
+        return resp(RespMsg.flag_not_exist)
+    dao.add_comment(add_.flag_id, user_id, add_.content, add_.location, None, None)
     return resp(RespMsg.success)
 
 
@@ -135,13 +136,19 @@ def add_comment(add_: AddComment):
 @args_parse(AddSubComment)
 @custom_jwt()
 def add_sub_comment(add_: AddSubComment):
-    resp_nickname = dao.get_nickname_by_comment_id(add_.ask_user_id) or ' '
-    prefix = '@' + resp_nickname
+    user_id = get_jwt_identity()
+    # 标记是否存在
+    if not dao.flag_exist(user_id, add_.flag_id):
+        return resp(RespMsg.comment_not_exist)
 
-    with db.auto_commit():
-        root_comment_id = dao.add_comment(
-            add_.flag_id, get_jwt_identity(), add_.content, add_.location, add_.root_comment_id, prefix)
-        dao.add_sub_comment(root_comment_id)
+    # 这里要做一个系统通知
+    # 获取用户昵称
+    # 评论层级只能2层，回复评论的root_comment_id一定是null
+    ask_user_nickname = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.root_comment_id)
+    if not ask_user_nickname:
+        return resp(RespMsg.comment_not_exist)
+
+    dao.add_comment(add_.flag_id, user_id, add_.content, add_.location, add_.root_comment_id, ask_user_nickname)
     return resp(RespMsg.success)
 
 

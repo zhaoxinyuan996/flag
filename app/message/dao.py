@@ -1,7 +1,6 @@
-from typing import Tuple, Optional, List
-
+from typing import List
+from app.base_dao import Dao
 from app.message.typedef import ReceiveMessageResp
-from util.database import Dao
 
 
 class MessageDao(Dao):

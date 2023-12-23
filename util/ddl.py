@@ -14,8 +14,8 @@ phone int,
 is_man bool,
 
 signature text,
-profile_picture text,
-background_picture text,
+avatar_url text,
+bg_avatar_url text,
 flag_num int,
 
 create_time timestamp not null,
@@ -23,7 +23,7 @@ vip_deadline timestamp,
 block_deadline timestamp,
 alive_deadline timestamp,
 belong text,
-location geometry,
+location geometry(geometry,4326),
 extend1 text,
 extend2 text,
 extend3 text
@@ -77,8 +77,8 @@ extend3 text
 d5 = '''
 create table flag (
 id uuid primary key,
-user_id int not null,
-location geometry not null,
+user_id uuid not null,
+location geometry(geometry,4326) not null,
 content text,
 type int,
 is_open int not null,
@@ -93,7 +93,7 @@ extend3 text
 CREATE INDEX type_index ON flag(type);
 CREATE INDEX is_open_index ON flag(is_open);
 CREATE INDEX user_id_index ON flag(user_id);
-CREATE INDEX flag_location_index ON flag(location);
+CREATE INDEX flag_location_index ON flag USING GIST (location);
 '''
 
 # 评论表
@@ -104,7 +104,8 @@ flag_id uuid not null,
 user_id uuid not null,
 content text not null,
 root_comment_id int,
-distance int not null,
+location geometry(geometry,4326),
+show_distance bool not null default true,
 prefix text,
 comment_time timestamp not null,
 extend1 text,

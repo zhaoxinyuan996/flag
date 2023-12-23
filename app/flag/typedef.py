@@ -1,7 +1,9 @@
 from datetime import datetime
-from pydantic import constr
-from typing import Optional, Tuple, List, Union
-from app.typedef import UUID, LOCATION, REQ_LOCATION
+from uuid import UUID
+
+from pydantic import constr, confloat
+from typing import Optional, List, Union
+from app.base_typedef import LOCATION
 from app.util import Model
 from typedef import Order
 
@@ -12,7 +14,7 @@ _COMMENT_CONTENT = constr(max_length=100)
 
 class Flag(Model):
     id: Optional[UUID]
-    user_id: Optional[int]
+    user_id: Optional[UUID]
     location: Optional[LOCATION]
     name: Optional[str]
     content: Optional[_FLAG_CONTENT]
@@ -25,8 +27,8 @@ class Flag(Model):
 
 class Comment(Model):
     id: Optional[int]
-    flag_id: Optional[int]
-    user_id: Optional[int]
+    flag_id: Optional[UUID]
+    user_id: Optional[UUID]
     content: Optional[_COMMENT_CONTENT]
     root_comment_id: Optional[int]
     location: Optional[LOCATION]
@@ -35,8 +37,8 @@ class Comment(Model):
 
 
 class AddFlag(Flag):
-    user_id: int
-    location: REQ_LOCATION
+    user_id: UUID
+    location: LOCATION
     name: str
     content: _FLAG_CONTENT
 
@@ -51,25 +53,27 @@ class UpdateFlag(AddFlag):
 
 class GetFlagBy(Order):
     by: str
-    key: Union[int, Tuple[float, float]]
-    distance: Optional[Tuple[float, float]]
+    key: Union[UUID, LOCATION]
 
 
 class FlagType(Model):
-    type: int
+    type: int = 0
 
 
 class SetFlagType(FlagType):
     id: UUID
 
 
-class GetFlagByWithType(GetFlagBy, FlagType):
-    ...
+class GetFlagByMap(FlagType):
+    type: Optional[int] = 0
+    location: LOCATION
+    distance: confloat(le=10000)
 
 
-class GetFlagCountByDistance(FlagType, Model):
-    key: Tuple[float, float]
-    distance: Optional[Tuple[float, float]]
+class GetFlagByMapCount(FlagType):
+    type: Optional[int] = 0
+    location: LOCATION
+    distance: confloat(le=100000)
 
 
 class FlagId(Model):
@@ -77,14 +81,15 @@ class FlagId(Model):
 
 
 class AddComment(Model):
-    flag_id: int
+    flag_id: UUID
     content: _COMMENT_CONTENT
-    location: REQ_LOCATION
+    location: LOCATION
+    show_distance: bool
 
 
 class AddSubComment(AddComment):
     root_comment_id: int
-    ask_user_id: int
+    ask_user_id: UUID
 
 
 class CommentSubResp(Model):

@@ -96,6 +96,10 @@ class RespMsg:
         'zh': '标记不存在',
         'en': 'flag not exist'
     })
+    comment_not_exist = Message({
+        'zh': '评论不存在',
+        'en': 'comment not exist'
+    })
     in_black_list = Message({
         'zh': '在黑名单中或用户不存在',
         'en': 'in black list or user not exist'

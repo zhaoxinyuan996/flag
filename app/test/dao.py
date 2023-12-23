@@ -1,7 +1,7 @@
 from typing import List
 
-from util.database import Dao
 from .typedef import Test
+from ..base_dao import Dao
 
 
 class TestDao(Dao):
