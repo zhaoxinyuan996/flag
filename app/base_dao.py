@@ -70,4 +70,4 @@ class Dao:
 
     @staticmethod
     def location(column: str):
-        return f'array[ST_x({column}), ST_y({column})]'
+        return f'array[ST_x({column}), ST_y({column})] {column}'

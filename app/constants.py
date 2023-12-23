@@ -27,7 +27,7 @@ class FileType(InEnum):
     flag_pic = 'flag-pic'
 
 
-class UserLevel(InEnum):
+class UserClass(InEnum):
     signing_out = -2
     block = -1
     normal = 0

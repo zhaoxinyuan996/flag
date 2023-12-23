@@ -10,13 +10,8 @@ def url_wrap(url: AnyUrl, nxt: SerializerFunctionWrapHandler) -> str:
     return str(url)
 
 
-def location_wrap(location: Tuple[float, float], nxt: SerializerFunctionWrapHandler) -> str:
-    _ = nxt
-    return f'point ({location[0]} {location[1]})'
-
-
 URL = Annotated[AnyUrl, PlainSerializer(url_wrap)]
-LOCATION = Annotated[Tuple[float, float],  PlainSerializer(location_wrap, return_type=str)]
+LOCATION = Tuple[float, float]
 
 
 def point(location: Tuple[float, float]):

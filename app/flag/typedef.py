@@ -8,7 +8,7 @@ from app.util import Model
 from typedef import Order
 
 
-_FLAG_CONTENT = constr(max_length=300)
+_FLAG_CONTENT = Optional[constr(max_length=300)]
 _COMMENT_CONTENT = constr(max_length=100)
 
 
@@ -20,6 +20,7 @@ class Flag(Model):
     content: Optional[_FLAG_CONTENT]
     type: Optional[int]
     is_open: Optional[int]
+    user_class: Optional[int]
     create_time: Optional[datetime]
     update_time: Optional[datetime]
     pictures: Optional[List[str]]
@@ -39,7 +40,7 @@ class Comment(Model):
 class AddFlag(Flag):
     user_id: UUID
     location: LOCATION
-    name: str
+    name: constr(min_length=1, max_length=20)
     content: _FLAG_CONTENT
 
     type: int
@@ -52,8 +53,8 @@ class UpdateFlag(AddFlag):
 
 
 class GetFlagBy(Order):
-    by: str
-    key: Union[UUID, LOCATION]
+    by: Optional[str]
+    key: Union[None, UUID, LOCATION]
 
 
 class FlagType(Model):
@@ -65,7 +66,7 @@ class SetFlagType(FlagType):
 
 
 class GetFlagByMap(FlagType):
-    type: Optional[int] = 0
+    type: Optional[int]
     location: LOCATION
     distance: confloat(le=10000)
 

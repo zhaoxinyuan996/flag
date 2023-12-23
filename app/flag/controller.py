@@ -5,8 +5,8 @@ from typing import List, Tuple, Union
 from app.flag.dao import dao
 from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
-from app.user.controller import get_user_level
-from app.constants import UserLevel, flag_picture_size, FileType, allow_picture_type, RespMsg
+from app.user.controller import get_user_class
+from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg
 from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
     AddComment, AddSubComment, FlagId, GetFlagByMap, GetFlagByMapCount
 from app.util import args_parse, resp, custom_jwt, get_request_list
@@ -22,10 +22,10 @@ log = logging.getLogger(__name__)
 def _build(content: str) -> List[Tuple[str, bytes]]:
     """集成各种校验，返回图片"""
     pictures = request.files.getlist('pic')
-    level = get_user_level()
-    if level == UserLevel.normal and len(pictures) > 1:
+    level = get_user_class()
+    if level == UserClass.normal and len(pictures) > 1:
         return resp(RespMsg.too_large)
-    elif level == UserLevel.vip and len(pictures) > 9:
+    elif level == UserClass.vip and len(pictures) > 9:
         return resp(RespMsg.too_large)
     length = 0
     datas = []
@@ -56,17 +56,22 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
         _flag['location'] = json.loads(_flag['location'])
     flag = model(**_flag)
 
+    # 获取用户级别
+    user_class: UserClass = get_user_class()
+
+    # 构建图片数据
     datas = _build(flag.content)
     if isinstance(datas, Response):
         return datas
-
+    # 新建和修改走同一个函数
     with db.auto_commit():
+        # 新标记要新建一个标记
         if new:
-            flag.id = dao.add(flag)
+            flag.id = dao.add(flag, user_class.value)
 
         for i, data in enumerate(datas):
             suffix, b = data
-            file_minio.upload(f'{flag.id}-{i}.{suffix}', FileType.flag_pic, b, get_user_level() == UserLevel.vip)
+            file_minio.upload(f'{flag.id}-{i}.{suffix}', FileType.flag_pic, b, user_class == UserClass.vip)
             flag.pictures.append(file_minio.get_file_url(FileType.flag_pic, f'{flag.id}.{suffix}'))
 
         flag_id = dao.update(flag)
@@ -91,6 +96,8 @@ def update():
 @args_parse(GetFlagBy)
 @custom_jwt()
 def get_flag(get: GetFlagBy):
+    if not get.by:
+        return resp([f.model_dump() for f in dao.get_flag_by_user(None, get_jwt_identity(), get)])
     if get.by == 'flag':
         flag = dao.get_flag_by_flag(get.key, get_jwt_identity())
         return resp(flag.model_dump() if flag else None)

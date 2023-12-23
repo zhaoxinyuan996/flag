@@ -7,15 +7,15 @@ from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, GetFlag
 
 
 class FlagDao(Dao):
-    fields = f"id, user_id, {Dao.location('location')}, content, type, create_time, pictures, is_open"
+    fields = f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, pictures, is_open"
 
-    def add(self, flag: Flag) -> UUID:
+    def add(self, flag: Flag, user_class: int) -> str:
         sql = ('insert into flag '
-               '(id, user_id, location, content, type, is_open, create_time, update_time, pictures) '
-               'values(gen_random_uuid(), :user_id, :location, :content, :type, :is_open, '
+               '(id, user_id, location, name, content, user_class, type, is_open, create_time, update_time, pictures) '
+               'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :is_open, '
                'current_timestamp, current_timestamp, array[]::text[]) returning id')
         return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open,
-                            location=point(flag.location), type=flag.type)
+                            name=flag.name, user_class=user_class, location=point(flag.location), type=flag.type)
 
     def update(self, flag: Flag) -> Optional[int]:
         sql = 'update flag set pictures=:pictures where id=:id returning id'
@@ -25,16 +25,17 @@ class FlagDao(Dao):
         sql = f'select {self.fields} from flag where id=:flag_id and (is_open=1 or user_id=:user_id)'
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
-    def get_flag_by_user(self, user_id: UUID, private_id: UUID, get: GetFlagBy) -> List[Flag]:
-        sql = (f'select {self.fields} from flag where '
-               'user_id=:private_id or (is_open=1 and user_id=:user_id) '
+    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagBy) -> List[Flag]:
+        sql = (f'select {self.fields} from flag where user_id=:private_id '
+               + (' or (is_open=1 and user_id=:user_id) ' if user_id is not None else '') +
                f'order by {get.order} {get.asc}')
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[Flag]:
         sql = (f'select {self.fields} from flag where '
-               '(user_id=:user_id or is_open=1) and type=:type and '
-               "ST_Distance(ST_GeographyFromText(:location), "
+               '(user_id=:user_id or is_open=1) '
+               + ('and type=:type ' if get.type is not None else '') +
+               "and ST_Distance(ST_GeographyFromText(:location), "
                'ST_GeographyFromText(ST_AsText(location)))<:distance')
         return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
 
