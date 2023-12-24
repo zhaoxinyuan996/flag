@@ -66,7 +66,7 @@ class UserDao(Dao):
         return self.execute(sql, user_id=user_id)
 
     def get_info(self, user_id: UUID) -> Optional[UserInfo]:
-        sql = 'select vip_deadline, block_deadline, flag_num from users where id=:user_id'
+        sql = 'select flag_num, create_time, vip_deadline, block_deadline, alive_deadline from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
     def set_black(self, user_id: UUID, black_id: UUID):

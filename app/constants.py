@@ -11,7 +11,7 @@ class InEnum(Enum, metaclass=EnumMeta):
     ...
 
 
-allow_picture_type = ('jpg', 'png', 'gif')
+allow_picture_type = frozenset(('jpg', 'png', 'gif', 'jpeg'))
 # 用户头像限制1m
 user_picture_size = 1024 * 1024
 # flag图片一共大小限制10m

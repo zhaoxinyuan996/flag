@@ -9,7 +9,7 @@ from util.config import config
 minio_config = config['minio'][config['env']]
 
 log = logging.getLogger(__name__)
-origin_str = 'origin-'
+origin_str = 'o-'
 
 
 class FileMinio:
@@ -36,12 +36,11 @@ class FileMinio:
         return True
 
     def upload(self, filename: str, file_type: str, b: bytes, origin: bool):
-        def upload_thumbnail():
-            """上传缩略图，默认"""
-            t_b = self.thumbnail(b, file_type)
-            t_io = BytesIO(t_b)
-            self.client.put_object(bucket, filename, t_io, len(t_b))
-        assert file_type in FileType
+        # def upload_thumbnail():
+        #     """上传缩略图，暂时先不用"""
+        #     t_b = self.thumbnail(b, file_type)
+        #     t_io = BytesIO(t_b)
+        #     self.client.put_object(bucket, filename, t_io, len(t_b))
         bucket = file_type
         io = BytesIO(b)
 
@@ -50,16 +49,14 @@ class FileMinio:
             self.client.put_object(bucket, f'{origin_str}{filename}', io, len(b))
 
         try:
-            upload_thumbnail()
-            if origin:
-                upload_origin()
+            # upload_thumbnail()
+            upload_origin()
         except S3Error:
             self.create_bucket(bucket)
-            upload_thumbnail()
-            if origin:
-                upload_origin()
+            # upload_thumbnail()
+            upload_origin()
 
-    def get_file_url(self, bucket_name: FileType, filename: str, days=7, origin: bool = False) -> str:
+    def get_file_url_limited_time(self, bucket_name: str, filename: str, days=7, origin: bool = True) -> str:
         if origin:
             # 原图模式下优先请求原图
             try:
@@ -71,6 +68,11 @@ class FileMinio:
         return self.client.presigned_get_object(
             bucket_name, f'{filename}',
             expires=timedelta(days=days))
+
+    @staticmethod
+    def get_file_url(bucket_name: str, filename: str, origin: bool = True):
+        url = f'http://{minio_config["host"]}:{minio_config["port"]}/{bucket_name}/{origin_str}{filename}'
+        return url
 
     @staticmethod
     def thumbnail(src_io: bytes, type_: str):

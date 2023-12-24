@@ -1,4 +1,4 @@
-from pydantic import AnyUrl
+from pydantic import AnyUrl, confloat
 from typing import Tuple, Annotated
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 from pydantic.functional_serializers import PlainSerializer
@@ -11,7 +11,7 @@ def url_wrap(url: AnyUrl, nxt: SerializerFunctionWrapHandler) -> str:
 
 
 URL = Annotated[AnyUrl, PlainSerializer(url_wrap)]
-LOCATION = Tuple[float, float]
+LOCATION = Tuple[confloat(gt=0), confloat(gt=0)]
 
 
 def point(location: Tuple[float, float]):

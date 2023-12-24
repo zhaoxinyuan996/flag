@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 def get_user_info() -> UserInfo:
     # 加一层g？
     # 再加一层redis
-    info: UserInfo = dao.get_info()
+    info: UserInfo = dao.get_info(get_jwt_identity())
     if not info:
         raise AppError(RespMsg.user_not_exist)
     return info
@@ -117,7 +117,6 @@ def sign_up_wechat(wechat: SignWechat):
             db.session.commit()
 
     access_token = create_access_token(identity=user_id)
-    print(access_token)
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
@@ -155,16 +154,16 @@ def upload_avatar():
     """设置头像"""
     user_id = get_jwt_identity()
     info = get_user_info()
-    suffix = request.files['pic'].filename.rsplit('.', 1)[1]
+    suffix = request.files['file'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
-    b = request.files['pic'].stream.read()
+    b = request.files['file'].stream.read()
     if len(b) > user_picture_size:
         return resp(RespMsg.too_large, -1)
     file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, info.user_class == UserClass.vip)
     url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
     dao.set_userinfo(user_id, {'avatar_url': url})
-    return resp(RespMsg.success)
+    return resp(RespMsg.success, avatar_url=url)
 
 
 @bp.route('/set-userinfo', methods=['post'])
