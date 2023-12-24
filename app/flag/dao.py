@@ -11,11 +11,12 @@ class FlagDao(Dao):
 
     def add(self, flag: Flag, user_class: int) -> str:
         sql = ('insert into flag '
-               '(id, user_id, location, name, content, user_class, type, is_open, create_time, update_time, pictures) '
+               '(id, user_id, location, name, content, user_class, type, is_open, create_time, update_time, pictures,'
+               'ico_num) '
                'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :is_open, '
-               'current_timestamp, current_timestamp, array[]::text[]) returning id')
-        return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open,
-                            name=flag.name, user_class=user_class, location=point(flag.location), type=flag.type)
+               'current_timestamp, current_timestamp, array[]::text[], :ico_num) returning id')
+        return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open, name=flag.name,
+                            user_class=user_class, location=point(flag.location), type=flag.type, ico_num=flag.ico_num)
 
     def update(self, flag: Flag) -> Optional[int]:
         sql = 'update flag set pictures=:pictures where id=:id returning id'

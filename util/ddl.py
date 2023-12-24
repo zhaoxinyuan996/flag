@@ -87,7 +87,7 @@ user_class int not null,
 create_time timestamp not null,
 update_time timestamp not null,
 pictures text[] not null,
-extend1 text,
+ico_id int not null,
 extend2 text,
 extend3 text
 );

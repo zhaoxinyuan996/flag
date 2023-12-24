@@ -24,6 +24,7 @@ class Flag(Model):
     create_time: Optional[datetime]
     update_time: Optional[datetime]
     pictures: Optional[List[str]]
+    ico_num: Optional[int]
 
 
 class Comment(Model):
@@ -46,6 +47,7 @@ class AddFlag(Flag):
     type: int
     is_open: int
     pictures: List[str]
+    ico_num: int
 
 
 class UpdateFlag(AddFlag):
