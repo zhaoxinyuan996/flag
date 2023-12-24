@@ -22,12 +22,17 @@ user_picture_thumbnail_size = 50 * 1024
 flag_picture_thumbnail_size = 100 * 1024
 
 
-class FileType(InEnum):
+class FileType:
     head_pic = 'head-pic'
     flag_pic = 'flag-pic'
 
 
-class UserClass(InEnum):
+class FlagNum:
+    normal_user = 100
+    vip_user = 500
+
+
+class UserClass:
     signing_out = -2
     block = -1
     normal = 0
@@ -108,9 +113,15 @@ class RespMsg:
         'zh': '成功',
         'en': 'success'
     })
+    flag_limit = Message({
+        'zh': '创建的标记已达上限',
+        'en': 'created flag has reached its maximum limit',
+        'code': -250
+    })
     blocked_user = Message({
         'zh': '你已被锁定',
-        'en': 'you have been locked'
+        'en': 'you have been locked',
+        'code': -251
     })
     params_error = Message({
         'zh': '参数错误',
@@ -125,5 +136,9 @@ class RespMsg:
 
 
 class AppError(Exception):
-    def __init__(self, msg: Union[Message, str]):
+    def __init__(self, msg: Union[Message, str, None]):
         self.msg = msg
+
+
+class UndefinedError(AppError):
+    ...

@@ -16,7 +16,7 @@ is_man bool,
 signature text,
 avatar_url text,
 bg_avatar_url text,
-flag_num int,
+flag_num int not null default 0,
 
 create_time timestamp not null,
 vip_deadline timestamp,

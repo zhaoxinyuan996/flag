@@ -68,7 +68,7 @@ class SetFlagType(FlagType):
 class GetFlagByMap(FlagType):
     type: Optional[int]
     location: LOCATION
-    distance: confloat(le=10000)
+    distance: confloat(le=100000)
 
 
 class GetFlagByMapCount(FlagType):

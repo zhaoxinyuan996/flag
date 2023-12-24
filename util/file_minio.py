@@ -35,14 +35,14 @@ class FileMinio:
             return False
         return True
 
-    def upload(self, filename: str, file_type: FileType, b: bytes, origin: bool):
+    def upload(self, filename: str, file_type: str, b: bytes, origin: bool):
         def upload_thumbnail():
             """上传缩略图，默认"""
             t_b = self.thumbnail(b, file_type)
             t_io = BytesIO(t_b)
             self.client.put_object(bucket, filename, t_io, len(t_b))
         assert file_type in FileType
-        bucket = file_type.value
+        bucket = file_type
         io = BytesIO(b)
 
         def upload_origin():
@@ -64,16 +64,16 @@ class FileMinio:
             # 原图模式下优先请求原图
             try:
                 return self.client.presigned_get_object(
-                    bucket_name.value, f'{origin_str}{filename}', expires=timedelta(days=days))
+                    bucket_name, f'{origin_str}{filename}', expires=timedelta(days=days))
             # 报错的话不return，继续运行下面的缩略图
             except S3Error:
                 ...
         return self.client.presigned_get_object(
-            bucket_name.value, f'{filename}',
+            bucket_name, f'{filename}',
             expires=timedelta(days=days))
 
     @staticmethod
-    def thumbnail(src_io: bytes, type_: FileType):
+    def thumbnail(src_io: bytes, type_: str):
         """
         https://madmalls.com/blog/post/python3-resize-images/
         将原始图片的宽高比例调整到跟目标图的宽高比例一致，所以需要：

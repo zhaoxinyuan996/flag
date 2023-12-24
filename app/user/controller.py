@@ -4,12 +4,11 @@ import re
 import random
 import requests
 from app.user.dao import dao
-from datetime import datetime
 from functools import partial
-from flask import Blueprint, request, g
+from flask import Blueprint, request
 from app.util import resp, custom_jwt, args_parse
 from app.constants import RespMsg, allow_picture_type, user_picture_size, UserClass, FileType, AppError
-from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo
+from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
@@ -27,20 +26,13 @@ password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 log = logging.getLogger(__name__)
 
 
-def get_user_class() -> UserClass:
-    """获取用户级别，后面用redis存"""
-    user_id = get_jwt_identity()
-    user = dao.get_level(user_id)
-    if not user:
+def get_user_info() -> UserInfo:
+    # 加一层g？
+    # 再加一层redis
+    info: UserInfo = dao.get_info()
+    if not info:
         raise AppError(RespMsg.user_not_exist)
-    if user.block_deadline > datetime.now():
-        level = UserClass.block
-    elif user.vip_deadline > datetime.now():
-        level = UserClass.vip
-    else:
-        level = UserClass.normal
-    g.user_level = level
-    return level
+    return info
 
 
 def get_location(user_id: int, ip: str):
@@ -162,14 +154,14 @@ def user_info():
 def upload_avatar():
     """设置头像"""
     user_id = get_jwt_identity()
-    level = get_user_class()
+    info = get_user_info()
     suffix = request.files['pic'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
     b = request.files['pic'].stream.read()
     if len(b) > user_picture_size:
         return resp(RespMsg.too_large, -1)
-    file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, level == UserClass.vip)
+    file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, info.user_class == UserClass.vip)
     url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
     dao.set_userinfo(user_id, {'avatar_url': url})
     return resp(RespMsg.success)

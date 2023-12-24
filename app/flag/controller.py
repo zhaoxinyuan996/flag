@@ -2,13 +2,15 @@ import json
 import os
 import logging
 from typing import List, Tuple, Union
+from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, Response
 from flask_jwt_extended import get_jwt_identity
-from app.user.controller import get_user_class
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg
 from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
     AddComment, AddSubComment, FlagId, GetFlagByMap, GetFlagByMapCount
+from app.user.controller import get_user_info
+from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
 from util.database import db
 from util.file_minio import file_minio
@@ -22,10 +24,10 @@ log = logging.getLogger(__name__)
 def _build(content: str) -> List[Tuple[str, bytes]]:
     """集成各种校验，返回图片"""
     pictures = request.files.getlist('pic')
-    level = get_user_class()
-    if level == UserClass.normal and len(pictures) > 1:
+    info: UserInfo = get_user_info()
+    if info.user_class == UserClass.normal and len(pictures) > 1:
         return resp(RespMsg.too_large)
-    elif level == UserClass.vip and len(pictures) > 9:
+    elif info.user_class == UserClass.vip and len(pictures) > 9:
         return resp(RespMsg.too_large)
     length = 0
     datas = []
@@ -49,16 +51,16 @@ def _build(content: str) -> List[Tuple[str, bytes]]:
 
 def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
     """新增和修改"""
+    user_id = get_jwt_identity()
     _flag = get_request_list(request.form)
-    _flag['user_id'] = get_jwt_identity()
+    _flag['user_id'] = user_id
     _flag['pictures'] = []
     if isinstance(_flag['location'], str):
         _flag['location'] = json.loads(_flag['location'])
     flag = model(**_flag)
 
     # 获取用户级别
-    user_class: UserClass = get_user_class()
-
+    user_class = get_user_info().user_class
     # 构建图片数据
     datas = _build(flag.content)
     if isinstance(datas, Response):
@@ -67,7 +69,8 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
     with db.auto_commit():
         # 新标记要新建一个标记
         if new:
-            flag.id = dao.add(flag, user_class.value)
+            user_dao.add_flag(user_id)
+            flag.id = dao.add(flag, user_class)
 
         for i, data in enumerate(datas):
             suffix, b = data
@@ -83,6 +86,9 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
 @bp.route('/add', methods=['post'])
 @custom_jwt()
 def add():
+    info = get_user_info()
+    if info.allow_flag_num < 0:
+        return resp(RespMsg.flag_limit)
     return _add_or_update(AddFlag, new=True)
 
 
