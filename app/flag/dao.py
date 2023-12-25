@@ -7,7 +7,8 @@ from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, GetFlag
 
 
 class FlagDao(Dao):
-    fields = f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, pictures, is_open"
+    fields = (f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, update_time, "
+              'pictures, is_open, ico_num ')
 
     def add(self, flag: Flag, user_class: int) -> str:
         sql = ('insert into flag '

@@ -116,6 +116,13 @@ def get_flag(get: GetFlagBy):
 @args_parse(GetFlagByMap)
 @custom_jwt()
 def get_flag_by_map(get: GetFlagByMap):
+    print(get.distance, get.location)
+    # 10公里内4倍检索
+    if get.distance < 10000:
+        get.distance *= 2
+    # 10公里-100公里2.25倍检索
+    else:
+        get.distance *= 1.5
     return resp([f.model_dump() for f in dao.get_flag_by_map(get_jwt_identity(), get)])
 
 
