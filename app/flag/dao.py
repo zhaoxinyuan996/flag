@@ -8,16 +8,17 @@ from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, GetFlag
 
 class FlagDao(Dao):
     fields = (f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, update_time, "
-              'pictures, is_open, ico_num ')
+              'pictures, is_open, ico_name ')
 
     def add(self, flag: Flag, user_class: int) -> str:
         sql = ('insert into flag '
                '(id, user_id, location, name, content, user_class, type, is_open, create_time, update_time, pictures,'
-               'ico_num) '
+               'ico_name) '
                'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :is_open, '
-               'current_timestamp, current_timestamp, array[]::text[], :ico_num) returning id')
+               'current_timestamp, current_timestamp, array[]::text[], :ico_name) returning id')
         return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open, name=flag.name,
-                            user_class=user_class, location=point(flag.location), type=flag.type, ico_num=flag.ico_num)
+                            user_class=user_class, location=point(flag.location), type=flag.type,
+                            ico_name=flag.ico_name)
 
     def update(self, flag: Flag) -> Optional[int]:
         sql = 'update flag set pictures=:pictures where id=:id returning id'
