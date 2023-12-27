@@ -55,7 +55,7 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
     _flag = get_request_list(request.form)
     _flag['user_id'] = user_id
     _flag['pictures'] = []
-    if isinstance(_flag['location'], str):
+    if isinstance(_flag.get('location'), str):
         _flag['location'] = json.loads(_flag['location'])
     flag = model(**_flag)
 

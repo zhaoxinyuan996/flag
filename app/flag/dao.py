@@ -3,7 +3,7 @@ from uuid import UUID
 
 from app.base_dao import Dao
 from app.base_typedef import point
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, GetFlagByMapCount
+from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, GetFlagByMapCount, UpdateFlag
 
 
 class FlagDao(Dao):
@@ -20,9 +20,12 @@ class FlagDao(Dao):
                             user_class=user_class, location=point(flag.location), type=flag.type,
                             ico_name=flag.ico_name)
 
-    def update(self, flag: Flag) -> Optional[int]:
-        sql = 'update flag set pictures=:pictures where id=:id returning id'
-        return self.execute(sql, id=flag.id, pictures=flag.pictures)
+    def update(self, flag: UpdateFlag) -> Optional[int]:
+        sql = ('update flag set name=:name, content=:content, type=:type, is_open=:is_open, '
+               'ico_name=:ico_name, pictures=:pictures '
+               'where id=:id and user_id=:user_id returning id')
+        return self.execute(sql, id=flag.id, user_id=flag.user_id, name=flag.name, content=flag.content, type=flag.type,
+                            is_open=flag.is_open, ico_name=flag.ico_name, pictures=flag.pictures)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
         sql = f'select {self.fields} from flag where id=:flag_id and (is_open=1 or user_id=:user_id)'
