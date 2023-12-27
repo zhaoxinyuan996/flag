@@ -89,12 +89,14 @@ update_time timestamp not null,
 pictures text[] not null,
 ico_name text not null,
 extend2 text,
-extend3 text
+extend3 text,
+unique(location)
 );
+
 
 CREATE INDEX type_index ON flag(type);
 CREATE INDEX is_open_index ON flag(is_open);
-CREATE INDEX user_id_index ON flag(user_id);
+create index flag_user_id_index on flag using hash(user_id);
 CREATE INDEX flag_location_index ON flag USING GIST (location);
 '''
 

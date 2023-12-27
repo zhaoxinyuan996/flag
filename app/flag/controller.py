@@ -4,7 +4,7 @@ import logging
 from typing import List, Tuple, Union
 from app.user.dao import dao as user_dao
 from app.flag.dao import dao
-from flask import Blueprint, request, Response
+from flask import Blueprint, request, Response, g
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg
 from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
@@ -69,6 +69,7 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
     with db.auto_commit():
         # 新标记要新建一个标记
         if new:
+            g.error_resp = RespMsg.flag_cant_cover_others_flag
             user_dao.add_flag(user_id)
             flag.id = dao.add(flag, user_class)
 

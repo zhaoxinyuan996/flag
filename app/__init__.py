@@ -16,7 +16,14 @@ from util.database import db
 log = logging.getLogger(__name__)
 
 
-# proxy_info = LocalProxy(ContextVar("flask.request_ctx"), 'info')
+'''
+g注入了2个属性
+语言
+g.language
+
+基于请求的错误信息，主要在事务中，可以多步设定，更灵活返回报错信息
+g.error_resp
+'''
 e_code = 500
 
 
@@ -36,7 +43,10 @@ def init(_app: Flask):
     @_app.errorhandler(Exception)
     def error(e: BaseException):
         log.exception(e)
-        if isinstance(e, ValidationError):
+        # 优先截胡自定义声明的error_resp
+        if _e := getattr(g, 'error_resp', None):
+            return resp(_e)
+        elif isinstance(e, ValidationError):
             return resp(RespMsg.params_error), getattr(e, 'code', e_code)
         elif isinstance(e, exc.IntegrityError):
             if isinstance(e.orig, pg_errors.UniqueViolation):

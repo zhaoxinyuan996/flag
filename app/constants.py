@@ -101,6 +101,11 @@ class RespMsg:
         'zh': '标记不存在',
         'en': 'flag not exist'
     })
+    flag_cant_cover_others_flag = Message({
+        'zh': '不可以覆盖别人的标记哦',
+        'en': 'cant cover others flag',
+        'code': -249
+    })
     comment_not_exist = Message({
         'zh': '评论不存在',
         'en': 'comment not exist'
@@ -133,6 +138,19 @@ class RespMsg:
         'en': 'server error',
         'code': -255
     })
+
+
+# 防止code码重复
+_codes = set()
+for v in vars(RespMsg).values():
+    if isinstance(v, Message) and 'code' in v:
+        if v['code'] in _codes:
+            RuntimeError(f'code码重复：{v}')
+        _codes.add(v['code'])
+    else:
+        continue
+
+del _codes
 
 
 class AppError(Exception):
