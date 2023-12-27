@@ -8,7 +8,7 @@ from app.constants import UserClass, FlagNum, UndefinedError
 from app.util import Model
 
 
-_NICKNAME = constr(max_length=10)
+_NICKNAME = constr(max_length=20)
 _SIGNATURE = constr(max_length=50)
 
 
