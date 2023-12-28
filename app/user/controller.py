@@ -111,10 +111,9 @@ def sign_up_wechat(wechat: SignWechat):
     if user_id is None:
         new = True
         from app import app
-        with app.app_context():
+        with db.auto_commit():
             user_id = dao.third_part_sigh_up_third('wechat', open_id, '')
             dao.third_part_sigh_up_user(user_id)
-            db.session.commit()
 
     access_token = create_access_token(identity=user_id)
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)

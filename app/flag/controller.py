@@ -8,7 +8,7 @@ from flask import Blueprint, request, Response, g
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg
 from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
-    AddComment, AddSubComment, FlagId, GetFlagByMap, GetFlagByMapCount
+    AddComment, AddSubComment, FlagId, GetFlagByMap, GetFlagByMapCount, Flag
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
@@ -19,6 +19,10 @@ module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 log = logging.getLogger(__name__)
+
+
+def ex_user(f: Flag) -> set:
+    return {} if f.user_id != get_jwt_identity() and (not f.content and not f.pictures) else {'user_id'}
 
 
 def _build(content: str) -> List[Tuple[str, bytes]]:
@@ -87,6 +91,7 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
 @bp.route('/add', methods=['post'])
 @custom_jwt()
 def add():
+    """新增标记"""
     info = get_user_info()
     if info.allow_flag_num < 0:
         return resp(RespMsg.flag_limit)
@@ -96,6 +101,7 @@ def add():
 @bp.route('/update', methods=['post'])
 @custom_jwt()
 def update():
+    """更新标记"""
     return _add_or_update(UpdateFlag, new=False)
 
 
@@ -107,9 +113,9 @@ def get_flag(get: GetFlagBy):
         return resp([f.model_dump() for f in dao.get_flag_by_user(None, get_jwt_identity(), get)])
     if get.by == 'flag':
         flag = dao.get_flag_by_flag(get.key, get_jwt_identity())
-        return resp(flag.model_dump() if flag else None)
+        return resp(flag.model_dump(exclude=ex_user(flag)) if flag else None)
     elif get.by == 'user':
-        return resp([f.model_dump() for f in dao.get_flag_by_user(get.key, get_jwt_identity(), get)])
+        return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_user(get.key, get_jwt_identity(), get)])
     return resp(RespMsg.system_error)
 
 
@@ -124,7 +130,7 @@ def get_flag_by_map(get: GetFlagByMap):
     # 10公里-100公里2.25倍检索
     else:
         get.distance *= 1.5
-    return resp([f.model_dump() for f in dao.get_flag_by_map(get_jwt_identity(), get)])
+    return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)])
 
 
 @bp.route('/get-flag-by-map-count', methods=['post'])
@@ -142,10 +148,23 @@ def set_flag_type(set_: SetFlagType):
     return resp(RespMsg.success)
 
 
+@bp.route('/delete', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def delete(delete_: FlagId):
+    """删除标记"""
+    user_id = get_jwt_identity()
+    with db.auto_commit():
+        # 先删除，如果存在则更新用户表
+        dao.delete(user_id, delete_.id) is None or user_dao.delete_flag(user_id)
+    return resp(RespMsg.success)
+
+
 @bp.route('/add-comment', methods=['post'])
 @args_parse(AddComment)
 @custom_jwt()
 def add_comment(add_: AddComment):
+    """添加标记"""
     user_id = get_jwt_identity()
     if not dao.flag_exist(user_id, add_.flag_id):
         return resp(RespMsg.flag_not_exist)
@@ -177,6 +196,7 @@ def add_sub_comment(add_: AddSubComment):
 @args_parse(FlagId)
 @custom_jwt()
 def get_comment(flag: FlagId):
+    """获取评论"""
     user_id = get_jwt_identity()
     if not dao.flag_is_open(user_id, flag.id):
         return resp(RespMsg.flag_not_exist)
@@ -187,5 +207,6 @@ def get_comment(flag: FlagId):
 @args_parse(FlagId)
 @custom_jwt()
 def delete_comment(flag: FlagId):
+    """删除评论"""
     dao.delete_comment(flag.id ,get_jwt_identity())
     return resp(RespMsg.success)

@@ -119,5 +119,9 @@ class UserDao(Dao):
         sql = 'update users set flag_num=flag_num+1 where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
+    def delete_flag(self, user_id: UUID):
+        sql = 'update users set flag_num=flag_num-1 where id=:user_id'
+        return self.execute(sql, user_id=user_id)
+
 
 dao = UserDao()

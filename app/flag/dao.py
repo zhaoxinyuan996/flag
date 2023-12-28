@@ -56,6 +56,10 @@ class FlagDao(Dao):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
         self.execute(sql, user_id=user_id, flag_id=flag_id, flag_type=flag_type)
 
+    def delete(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
+        sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
     def flag_exist(self, user_id: UUID, flag_id: UUID) -> Optional[int]:
         sql = ('select 1 from flag f inner join users u on '
                'f.user_id=u.id where (f.user_id=:user_id or f.is_open=1) and f.id=:flag_id')
