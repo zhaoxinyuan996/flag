@@ -69,5 +69,13 @@ class Dao:
         return db.execute(sql, **kwargs)
 
     @staticmethod
-    def location(column: str):
-        return f'array[ST_x({column}), ST_y({column})] {column}'
+    def text(sql: str, **kwargs) -> str:
+        """打印下sql debug用"""
+        for k, v in kwargs.items():
+            sql = sql.replace(f':{k}', f"'{v}'" if isinstance(v, str) else str(v))
+        return sql
+
+    @staticmethod
+    def location(column: str, rename: str = None):
+        """列名，重命名"""
+        return f'array[ST_y({column}), ST_x({column})] {rename or column}'

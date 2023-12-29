@@ -4,9 +4,10 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Optional
 from flask.json.provider import DefaultJSONProvider
-from flask_jwt_extended import verify_jwt_in_request
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic import BaseModel
+from pydantic_core import PydanticUndefined
 
 from .base_dao import build_model
 from .constants import Message
@@ -88,7 +89,7 @@ class Model(BaseModel):
         cls = type(self)
         kw = {}
         for cls in cls.__mro__[:-3]:
-            kw.update({k: None for k in cls.__annotations__})
+            kw.update({k: None for k in cls.__annotations__ if cls.model_fields[k].default is PydanticUndefined})
         kw.update(kwargs)
         # [kw.pop(i) for i in args if kw[i] is None]
         super().__init__(**kw)

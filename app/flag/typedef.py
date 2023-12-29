@@ -1,15 +1,24 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import constr, confloat
+from pydantic import constr, confloat, conint
 from typing import Optional, List, Union
 from app.base_typedef import LOCATION
 from app.util import Model
 from typedef import Order
 
 
+_TYPE = conint(ge=0, le=0)
+_STATUS = conint(ge=0, le=3)
 _FLAG_CONTENT = constr(max_length=300)
 _COMMENT_CONTENT = constr(max_length=100)
+
+
+'''
+status字段是int值，状态保存为位
+1           1
+anonymous   hide
+'''
 
 
 class Flag(Model):
@@ -18,13 +27,21 @@ class Flag(Model):
     location: Optional[LOCATION]
     name: Optional[str]
     content: Optional[_FLAG_CONTENT]
-    type: Optional[int]
-    is_open: Optional[int]
+    type: Optional[_TYPE]
+    status: Optional[_STATUS]
     user_class: Optional[int]
     create_time: Optional[datetime]
     update_time: Optional[datetime]
     pictures: Optional[List[str]]
     ico_name: Optional[str]
+
+    @property
+    def hide(self) -> bool:
+        return bool(self.status & 0b1)
+
+    @property
+    def anonymous(self) -> bool:
+        return bool(self.status & 0b10)
 
 
 class Comment(Model):
@@ -43,8 +60,8 @@ class AddFlag(Flag):
     name: constr(min_length=1, max_length=20)
     content: _FLAG_CONTENT
 
-    type: int
-    is_open: int
+    type: _TYPE
+    status: _STATUS
     pictures: List[str]
     ico_name: constr(max_length=20)
 
@@ -59,7 +76,7 @@ class GetFlagBy(Order):
 
 
 class FlagType(Model):
-    type: int = 0
+    type: _TYPE = 0
 
 
 class SetFlagType(FlagType):
@@ -67,15 +84,14 @@ class SetFlagType(FlagType):
 
 
 class GetFlagByMap(FlagType):
-    type: Optional[int]
     location: LOCATION
     distance: confloat(le=100000)
 
 
-class GetFlagByMapCount(FlagType):
-    type: Optional[int] = 0
+class FlagRegion(Model):
+    region_name: str
+    flag_num: int
     location: LOCATION
-    distance: confloat(le=100000)
 
 
 class FlagId(Model):

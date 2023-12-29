@@ -109,6 +109,12 @@ class UserDao(Dao):
                "returning id")
         return self.execute(sql, user_id=user_id, nickname=ran_nickname())
 
+    def set_avatar_url(self, user_id: UUID, avatar_url: str) -> Optional[str]:
+        sql = ('with old as (select avatar_url from users where id =:user_id)'
+               'update users set avatar_url=:avatar_url where id=:user_id'
+               'returning (select avatar_url from old)')
+        return self.execute(sql, user_id=user_id, avatar_url=avatar_url)
+
     def set_userinfo(self, user_id: UUID, info: dict):
         settings = ','.join(f"{k}=:{k}" for k, v in info.items() if v is not None)
         sql = (f'update users set {settings} '

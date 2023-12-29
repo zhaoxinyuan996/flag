@@ -86,7 +86,6 @@ class SetUserinfo(Model):
     is_man: Optional[bool]
     phone: Optional[conint(lt=19999999999)]
     signature: Optional[_SIGNATURE]
-    avatar_url: Optional[URL]
 
 
 if __name__ == '__main__':

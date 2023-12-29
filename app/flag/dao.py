@@ -3,54 +3,97 @@ from uuid import UUID
 
 from app.base_dao import Dao
 from app.base_typedef import point
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, GetFlagByMapCount, UpdateFlag
+from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion
 
 
 class FlagDao(Dao):
     fields = (f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, update_time, "
-              'pictures, is_open, ico_name ')
+              'pictures, status, ico_name ')
+    not_hide = 'status&1=0'
 
     def add(self, flag: Flag, user_class: int) -> str:
         sql = ('insert into flag '
-               '(id, user_id, location, name, content, user_class, type, is_open, create_time, update_time, pictures,'
+               '(id, user_id, location, name, content, user_class, type, status, create_time, update_time, pictures,'
                'ico_name) '
-               'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :is_open, '
+               'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :status, '
                'current_timestamp, current_timestamp, array[]::text[], :ico_name) returning id')
-        return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open, name=flag.name,
+        return self.execute(sql, user_id=flag.user_id, content=flag.content, status=flag.status, name=flag.name,
                             user_class=user_class, location=point(flag.location), type=flag.type,
                             ico_name=flag.ico_name)
 
     def update(self, flag: UpdateFlag) -> Optional[int]:
-        sql = ('update flag set name=:name, content=:content, type=:type, is_open=:is_open, '
+        sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
                'ico_name=:ico_name, pictures=:pictures '
                'where id=:id and user_id=:user_id returning id')
         return self.execute(sql, id=flag.id, user_id=flag.user_id, name=flag.name, content=flag.content, type=flag.type,
-                            is_open=flag.is_open, ico_name=flag.ico_name, pictures=flag.pictures)
+                            status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
-        sql = f'select {self.fields} from flag where id=:flag_id and (is_open=1 or user_id=:user_id)'
+        sql = f'select {self.fields} from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
     def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagBy) -> List[Flag]:
         sql = (f'select {self.fields} from flag where user_id=:private_id '
-               + (' or (is_open=1 and user_id=:user_id) ' if user_id is not None else '') +
+               + (f' or ({self.not_hide} and user_id=:user_id) ' if user_id is not None else '') +
                f'order by {get.order} {get.asc}')
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
+    '''
+    with s as(
+-- 市本级
+select a.code from adcode a inner join fences f on a.adcode=f.adcode 
+where a."rank" =2 and ST_Contains(f.fence,ST_GeomFromText('point(120.21200999999996 30.20840000000001)', 4326))
+),
+s0 as(
+-- 根据所在市查找下属区县
+select a.adcode, a.name, a.rank, a.center from s inner join adcode a on s.code=a.parent 
+),
+s1 as (
+-- 下属曲线的电子围栏
+select s0.name, f.fence from s0 inner join fences f on s0.adcode=f.adcode 
+where s0.rank=3 and s0.center is not null
+),
+s2 as (
+-- 电子围栏和标记关联
+select id, user_id, 
+location, 
+name, content, user_class, type, create_time, update_time, pictures, is_open, ico_name  
+from flag where 
+ST_Distance(ST_GeographyFromText('point (120.21200999999996 30.20840000000001  )'), 
+ST_GeographyFromText(ST_AsText(location)))<100000
+)
+select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
+    '''
+
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[Flag]:
         sql = (f'select {self.fields} from flag where '
-               '(user_id=:user_id or is_open=1) '
-               + ('and type=:type ' if get.type is not None else '') +
+               f'(user_id=:user_id or {self.not_hide}) and type=:type '
                "and ST_Distance(ST_GeographyFromText(:location), "
                'ST_GeographyFromText(ST_AsText(location)))<:distance')
         return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
 
-    def get_flag_by_map_count(self, user_id: UUID, get: GetFlagByMapCount) -> int:
-        sql = (f'select count(1) from flag where '
-               '(user_id=:user_id or is_open=1) and type=:type and '
-               "ST_Distance(ST_GeographyFromText(:location), "
-               'ST_GeographyFromText(ST_AsText(location)))<:distance')
-        return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
+    def get_flag_by_map_region(self, user_id: UUID, get: GetFlagByMap) -> List[FlagRegion]:
+        sql = ('with s as( '
+               '\n-- 市本级\n'
+               'select a.code from adcode a inner join fences f on a.adcode=f.adcode '
+               'where a.rank=2 and ST_Contains(f.fence,ST_GeomFromText(:location))), '
+               's0 as( '
+               '\n-- 根据所在市查找下属区县\n'
+               'select a.adcode, a.name, a.rank, a.center from s inner join adcode a on s.code=a.parent), '
+               's1 as ( '
+               '\n-- 下属区县的电子围栏\n'
+               'select s0.name region_name, center, f.fence from s0 inner join fences f on s0.adcode=f.adcode '
+               'where s0.rank=3 and s0.center is not null), '
+               's2 as ('
+               '\n-- 电子围栏和标记关联\n'
+               f'select location '
+               'from flag where '
+               f'(user_id=:user_id or {self.not_hide}) and type=:type) '
+               f"select count(1) flag_num, s1.region_name, {Dao.location('s1.center', 'location')} "
+               'from s2 inner join s1 on ST_Contains(s1.fence,s2.location) '
+               f'group by s1.region_name, s1.center')
+        return self.execute(
+            sql, user_id=user_id, type=get.type, location=point(get.location))
 
     def set_flag_type(self, user_id: UUID, flag_id: UUID, flag_type: int):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
@@ -62,7 +105,7 @@ class FlagDao(Dao):
 
     def flag_exist(self, user_id: UUID, flag_id: UUID) -> Optional[int]:
         sql = ('select 1 from flag f inner join users u on '
-               'f.user_id=u.id where (f.user_id=:user_id or f.is_open=1) and f.id=:flag_id')
+               f'f.user_id=u.id where (f.user_id=:user_id or f.{self.not_hide}) and f.id=:flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def root_comment_is_root(self, root_comment_id: int) -> Optional[int]:
@@ -80,7 +123,7 @@ class FlagDao(Dao):
 
     def get_nickname_by_comment_id(self, user_id: UUID, flag_id: UUID, root_comment_id: int) -> Optional[str]:
         sql = ('with s1 as (select c.user_id from flag_comment c inner join flag f '
-               'on c.flag_id=f.id where (f.user_id=:user_id or f.is_open=1) and f.id=:flag_id '
+               f'on c.flag_id=f.id where (f.user_id=:user_id or f.{self.not_hide}) and f.id=:flag_id '
                'and c.id=:root_comment_id and c.root_comment_id is null) select u.nickname from users u inner join s1 '
                'on u.id=s1.user_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id, root_comment_id=root_comment_id)
@@ -104,7 +147,7 @@ class FlagDao(Dao):
         self.execute(sql, comment_id=comment_id, user_id=user_id)
 
     def flag_is_open(self, user_id: int, flag_id: int) -> int:
-        sql = 'select exists(select 1 from flag where id=:flag_id and (is_open=1 or user_id=:user_id))'
+        sql = f'select exists(select 1 from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id))'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
 

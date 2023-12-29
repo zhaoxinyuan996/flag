@@ -2,6 +2,8 @@ import logging
 import os
 import re
 import random
+
+
 import requests
 from app.user.dao import dao
 from functools import partial
@@ -159,9 +161,16 @@ def upload_avatar():
     b = request.files['file'].stream.read()
     if len(b) > user_picture_size:
         return resp(RespMsg.too_large, -1)
-    file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, info.user_class == UserClass.vip)
-    url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
-    dao.set_userinfo(user_id, {'avatar_url': url})
+
+    # 生成文件名
+    filename = f'{user_id}.{file_minio.random_str()}.{suffix}'
+    url = file_minio.get_file_url(filename, FileType.head_pic)
+
+    old_filename = dao.set_userinfo(user_id, {'avatar_url': url})
+
+    file_minio.upload(filename, FileType.head_pic, b)
+    file_minio.remove_object(old_filename, FileType.head_pic)
+
     return resp(RespMsg.success, avatar_url=url)
 
 

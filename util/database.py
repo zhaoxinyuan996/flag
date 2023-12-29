@@ -1,10 +1,8 @@
 import logging
-from datetime import datetime
-from functools import partial
 from pydantic import BaseModel
-from sqlalchemy import text, Row
+from sqlalchemy import text
 from sqlalchemy.engine.result import RMKeyView
-from typing import Tuple, Any, Optional, Callable, Union
+from typing import Tuple, Any, Optional
 from contextlib import contextmanager
 from util.config import config
 from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy

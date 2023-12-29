@@ -8,7 +8,7 @@ from flask import Blueprint, request, Response, g
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg
 from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
-    AddComment, AddSubComment, FlagId, GetFlagByMap, GetFlagByMapCount, Flag
+    AddComment, AddSubComment, FlagId, GetFlagByMap, Flag
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 def ex_user(f: Flag) -> set:
-    return {} if f.user_id != get_jwt_identity() and (not f.content and not f.pictures) else {'user_id'}
+    return {'user_id'} if str(f.user_id) != get_jwt_identity() and f.hide else {}
 
 
 def _build(content: str) -> List[Tuple[str, bytes]]:
@@ -79,8 +79,8 @@ def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
 
         for i, data in enumerate(datas):
             suffix, b = data
-            file_minio.upload(f'{flag.id}-{i}.{suffix}', FileType.flag_pic, b, user_class == UserClass.vip)
-            flag.pictures.append(file_minio.get_file_url(FileType.flag_pic, f'{flag.id}.{suffix}'))
+            file_minio.upload(f'{flag.id}-{i}.{suffix}', FileType.flag_pic, b)
+            flag.pictures.append(file_minio.get_file_url(f'{flag.id}.{suffix}', FileType.flag_pic))
 
         flag_id = dao.update(flag)
         if not flag_id:
@@ -124,20 +124,18 @@ def get_flag(get: GetFlagBy):
 @custom_jwt()
 def get_flag_by_map(get: GetFlagByMap):
     print(get.distance, get.location)
-    # 10公里内4倍检索
+    # 10公里内4倍检索，返回详细标记
     if get.distance < 10000:
         get.distance *= 2
-    # 10公里-100公里2.25倍检索
+        return resp({
+            'detail': True,
+            'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)]})
+    # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
         get.distance *= 1.5
-    return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)])
-
-
-@bp.route('/get-flag-by-map-count', methods=['post'])
-@args_parse(GetFlagByMapCount)
-@custom_jwt()
-def get_flag_by_map_count(get: GetFlagByMapCount):
-    return resp(dao.get_flag_by_map_count(get_jwt_identity(), get))
+        return resp({
+            'detail': False,
+            'flags': [f.model_dump() for f in dao.get_flag_by_map_region(get_jwt_identity(), get)]})
 
 
 @bp.route('/set-flag-type', methods=['post'])

@@ -3,7 +3,7 @@ from datetime import timedelta
 from psycopg2 import errors as pg_errors
 from flask import Flask, Response, send_file
 from flask.globals import g
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, get_jwt_identity
 from pydantic import ValidationError
 from sqlalchemy import exc
 from . import test, user, flag, message
@@ -32,7 +32,6 @@ def init(_app: Flask):
     def before():
         """设置语言"""
         g.language = 'zh'
-        ...
 
     @_app.after_request
     def after(response: Response):

@@ -11,12 +11,12 @@ def url_wrap(url: AnyUrl, nxt: SerializerFunctionWrapHandler) -> str:
 
 
 URL = Annotated[AnyUrl, PlainSerializer(url_wrap)]
-LOCATION = Tuple[confloat(gt=0), confloat(gt=0)]
+LOCATION = Tuple[confloat(ge=-90, le=90), confloat(ge=-180, le=180)]
 
 
 def point(location: Tuple[float, float]):
-    """坐标类型序列化"""
-    return f'SRID=4326;point ({location[0]} {location[1]})'
+    """坐标类型序列化，pg中顺序是精度纬度"""
+    return f'SRID=4326;point ({location[1]} {location[0]})'
 
 
 if __name__ == '__main__':

@@ -1,4 +1,6 @@
 import logging
+import random
+import string
 from PIL import Image
 from io import BytesIO
 from datetime import timedelta
@@ -9,7 +11,8 @@ from util.config import config
 minio_config = config['minio'][config['env']]
 
 log = logging.getLogger(__name__)
-origin_str = 'o-'
+prefix = 'o-'
+string_pool = string.ascii_letters + string.digits
 
 
 class FileMinio:
@@ -35,44 +38,38 @@ class FileMinio:
             return False
         return True
 
-    def upload(self, filename: str, file_type: str, b: bytes, origin: bool):
-        # def upload_thumbnail():
-        #     """上传缩略图，暂时先不用"""
-        #     t_b = self.thumbnail(b, file_type)
-        #     t_io = BytesIO(t_b)
-        #     self.client.put_object(bucket, filename, t_io, len(t_b))
-        bucket = file_type
+    @staticmethod
+    def random_str():
+        return ''.join(random.sample(string_pool, 10))
+
+    def remove_object(self, filename: str, file_type: str):
+        """删除图片，不存在的话会报错，不管"""
+        try:
+            self.client.remove_object(file_type, f'{prefix}{filename}')
+        except Exception as e:
+            log.error(e)
+
+    def upload(self, filename: str, file_type: str, b: bytes):
         io = BytesIO(b)
 
         def upload_origin():
             """如果是会员的话再上传一份原图"""
-            self.client.put_object(bucket, f'{origin_str}{filename}', io, len(b))
+            self.client.put_object(file_type, f'{prefix}{filename}', io, len(b))
 
         try:
-            # upload_thumbnail()
             upload_origin()
         except S3Error:
-            self.create_bucket(bucket)
-            # upload_thumbnail()
+            self.create_bucket(file_type)
             upload_origin()
 
-    def get_file_url_limited_time(self, bucket_name: str, filename: str, days=7, origin: bool = True) -> str:
-        if origin:
-            # 原图模式下优先请求原图
-            try:
-                return self.client.presigned_get_object(
-                    bucket_name, f'{origin_str}{filename}', expires=timedelta(days=days))
-            # 报错的话不return，继续运行下面的缩略图
-            except S3Error:
-                ...
+    def get_file_url_limited_time(self, bucket_name: str, filename: str, days=7) -> str:
         return self.client.presigned_get_object(
-            bucket_name, f'{filename}',
+            bucket_name, f'{prefix}{filename}',
             expires=timedelta(days=days))
 
     @staticmethod
-    def get_file_url(bucket_name: str, filename: str, origin: bool = True):
-        url = f'http://{minio_config["host"]}:{minio_config["port"]}/{bucket_name}/{origin_str}{filename}'
-        return url
+    def get_file_url(filename: str, bucket_name: str):
+        return f'http://{minio_config["host"]}:{minio_config["port"]}/{bucket_name}/{prefix}{filename}'
 
     @staticmethod
     def thumbnail(src_io: bytes, type_: str):
