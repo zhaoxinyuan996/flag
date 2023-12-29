@@ -89,9 +89,12 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
                f'select location '
                'from flag where '
                f'(user_id=:user_id or {self.not_hide}) and type=:type) '
-               f"select count(1) flag_num, s1.region_name, {Dao.location('s1.center', 'location')} "
-               'from s2 inner join s1 on ST_Contains(s1.fence,s2.location) '
+               f"select count(location) flag_num, s1.region_name, {Dao.location('s1.center', 'location')} "
+               'from s1 left join s2 on ST_Contains(s1.fence,s2.location) '
                f'group by s1.region_name, s1.center')
+        print(self.text(
+            sql, user_id=user_id, type=get.type, location=point(get.location)))
+
         return self.execute(
             sql, user_id=user_id, type=get.type, location=point(get.location))
 
