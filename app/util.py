@@ -4,23 +4,18 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Optional
 from flask.json.provider import DefaultJSONProvider
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from flask_jwt_extended import verify_jwt_in_request, get_jwt, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 from .base_dao import build_model
-from .constants import Message
+from .constants import Message, JwtConfig
 from util.config import dev
 
 from flask import request, jsonify, current_app, g
 
 log = logging.getLogger(__name__)
-
-
-class JwtConfig:
-    jwt_access_minutes = 30
-    jwt_refresh_minutes = 1440
 
 
 def custom_jwt(
@@ -51,6 +46,14 @@ def resp(msg: Any, code: int = 0, **kwargs):
         _msg = msg[g.language]
         code = msg.get('code', code)
         return jsonify({'msg': _msg, 'code': code, **kwargs})
+    try:
+        jwt_info = get_jwt()
+        if datetime.timestamp(datetime.now()) + JwtConfig.re_jwt_timestamp > jwt_info['exp']:
+            access_token = create_access_token(identity=jwt_info['sub'])
+            return jsonify({'msg': msg, 'code': code, 'access_token': access_token, **kwargs})
+    # 如果不在jwt的装饰器请求中会报错，忽略
+    except RuntimeError:
+        ...
     return jsonify({'msg': msg, 'code': code, **kwargs})
 
 

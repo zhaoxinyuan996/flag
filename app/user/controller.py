@@ -3,7 +3,6 @@ import os
 import re
 import random
 
-
 import requests
 from app.user.dao import dao
 from functools import partial
@@ -107,7 +106,10 @@ def sign_up_wechat(wechat: SignWechat):
            f"appid={wechat_config['app_id']}&secret={wechat_config['app_secret']}&"
            f"js_code={wechat.code}&grant_type=authorization_code")
     res = requests.get(url)
-    open_id = str(res.json()['openid'])
+    open_id = res.json().get('openid')
+    if open_id is None:
+        raise ValueError(f'wechat content: {res.json()}')
+
     user_id = dao.wechat_exist(open_id)
     new = False
     if user_id is None:
@@ -121,14 +123,14 @@ def sign_up_wechat(wechat: SignWechat):
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
-@bp.route('/refresh-jwt', methods=['post'])
-@custom_jwt()
-def refresh_jwt():
-    """更新jwt，要结合更多的redis？用户状态控制？"""
-    user_id = get_jwt_identity()
-    access_token = create_access_token(identity=user_id)
-    DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
-    return resp(RespMsg.user_sign_in_success, access_token=access_token)
+# @bp.route('/refresh-jwt', methods=['post'])
+# @custom_jwt()
+# def refresh_jwt():
+#     """更新jwt，要结合更多的redis？用户状态控制？"""
+#     user_id = get_jwt_identity()
+#     access_token = create_access_token(identity=user_id)
+#     DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
+#     return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 
 @bp.route('/user-info', methods=['post'])
@@ -154,7 +156,6 @@ def user_info():
 def upload_avatar():
     """设置头像"""
     user_id = get_jwt_identity()
-    info = get_user_info()
     suffix = request.files['file'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)

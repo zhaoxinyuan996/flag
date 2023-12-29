@@ -22,6 +22,13 @@ user_picture_thumbnail_size = 50 * 1024
 flag_picture_thumbnail_size = 100 * 1024
 
 
+class JwtConfig:
+    jwt_access_minutes = 30
+    jwt_refresh_minutes = 1440
+    # 每次请求判断，快超时就重新发一个
+    re_jwt_timestamp = 600
+
+
 class FileType:
     head_pic = 'head-pic'
     flag_pic = 'flag-pic'

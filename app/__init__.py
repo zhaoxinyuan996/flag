@@ -3,12 +3,12 @@ from datetime import timedelta
 from psycopg2 import errors as pg_errors
 from flask import Flask, Response, send_file
 from flask.globals import g
-from flask_jwt_extended import JWTManager, get_jwt_identity
+from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
 from sqlalchemy import exc
 from . import test, user, flag, message
-from app.constants import RespMsg, AppError
-from app.util import resp, JSONProvider, JwtConfig
+from app.constants import RespMsg, AppError, JwtConfig
+from app.util import resp, JSONProvider
 from util.config import uri, dev
 from util.database import db
 
@@ -36,7 +36,8 @@ def init(_app: Flask):
     @_app.after_request
     def after(response: Response):
         # 基于请求的自动提交
-        db.session.commit()
+        if response.status_code == 200:
+            db.session.commit()
         return response
 
     @_app.errorhandler(Exception)
@@ -72,7 +73,8 @@ def create_app() -> Flask:
         # 过期时间
         _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_access_minutes)
     # 设置刷新JWT过期时间
-    _app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_refresh_minutes)
+    # 暂时的方法是后端判断时间，距离10分钟过期时候就返回一个新的token
+    # _app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_refresh_minutes)
     _app.json = JSONProvider(_app)
     return _app
 
