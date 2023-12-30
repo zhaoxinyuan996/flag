@@ -8,7 +8,7 @@ from app.util import Model
 from typedef import Order
 
 
-_TYPE = conint(ge=0, le=0)
+_TYPE = conint(ge=0, le=1)
 _STATUS = conint(ge=0, le=3)
 _FLAG_CONTENT = constr(max_length=300)
 _COMMENT_CONTENT = constr(max_length=100)
