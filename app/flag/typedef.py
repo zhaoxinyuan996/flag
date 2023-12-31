@@ -94,6 +94,18 @@ class FlagRegion(Model):
     location: LOCATION
 
 
+class FavFlag(Model):
+    id: Optional[UUID]
+    user_id: Optional[UUID]
+    location: Optional[LOCATION]
+    name: Optional[str]
+    content: Optional[_FLAG_CONTENT]
+    type: Optional[_TYPE]
+    user_class: Optional[int]
+    update_time: Optional[datetime]
+    ico_name: Optional[str]
+
+
 class FlagId(Model):
     id: UUID
 

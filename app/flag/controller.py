@@ -158,6 +158,35 @@ def delete(delete_: FlagId):
     return resp(RespMsg.success)
 
 
+@bp.route('/get-fav', methods=['post'])
+@custom_jwt()
+def get_fav():
+    """我的收藏"""
+    user_id = get_jwt_identity()
+
+    return resp([i.model_dump() for i in dao.get_fav(user_id)])
+
+
+@bp.route('/add-fav', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def add_fav(delete_: FlagId):
+    """删除收藏"""
+    user_id = get_jwt_identity()
+    dao.add_fav(user_id, delete_.id)
+    return resp(RespMsg.success)
+
+
+@bp.route('/delete-fav', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def delete_fav(delete_: FlagId):
+    """删除收藏"""
+    user_id = get_jwt_identity()
+    dao.delete_fav(user_id, delete_.id)
+    return resp(RespMsg.success)
+
+
 @bp.route('/add-comment', methods=['post'])
 @args_parse(AddComment)
 @custom_jwt()

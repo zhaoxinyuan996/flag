@@ -3,13 +3,14 @@ from uuid import UUID
 
 from app.base_dao import Dao
 from app.base_typedef import point
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion
+from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag
 
 
 class FlagDao(Dao):
     fields = (f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, update_time, "
               'pictures, status, ico_name ')
     not_hide = 'status&1=0'
+    anonymous = 'status&0b10=0b10'
 
     def add(self, flag: Flag, user_class: int) -> str:
         sql = ('insert into flag '
@@ -101,6 +102,22 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
 
     def delete(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
         sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def get_fav(self, user_id: UUID) -> List[FavFlag]:
+        sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
+               f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name "
+               'from fav left join flag f on fav.flag_id=f.id '
+               f'where fav.user_id=:user_id and {self.not_hide}')
+        return self.execute(sql, user_id=user_id)
+
+    def add_fav(self, user_id: UUID, flag_id: UUID):
+        sql = ('insert into fav (user_id, flag_id, create_time)'
+               'values(:user_id,:flag_id,current_timestamp)')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def delete_fav(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
+        sql = 'delete from fav where user_id=:user_id and flag_id=:flag_id returning flag_id'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def flag_exist(self, user_id: UUID, flag_id: UUID) -> Optional[int]:
