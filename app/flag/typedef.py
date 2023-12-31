@@ -94,6 +94,19 @@ class FlagRegion(Model):
     location: LOCATION
 
 
+class OpenFlag(Flag):
+    # 匿名或者删除
+    user_id: Optional[UUID]
+    nickname: Optional[str]
+    avatar_url: Optional[str]
+
+    def __init__(self, **kwargs):
+        # 匿名标记
+        if kwargs['status'] & 0b10 == 0b10:
+            kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_url'] = None
+        super().__init__(**kwargs)
+
+
 class FavFlag(Model):
     id: Optional[UUID]
     user_id: Optional[UUID]

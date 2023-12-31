@@ -3,11 +3,12 @@ from uuid import UUID
 
 from app.base_dao import Dao
 from app.base_typedef import point
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag
+from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag
 
 
 class FlagDao(Dao):
-    fields = (f"id, user_id, {Dao.location('location')}, name, content, user_class, type, create_time, update_time, "
+    fields = (f"f.id, f.user_id, {Dao.location('f.location', 'location')}, f.name, f.content, "
+              f'f.user_class, f.type, f.create_time, f.update_time, '
               'pictures, status, ico_name ')
     not_hide = 'status&1=0'
     anonymous = 'status&0b10=0b10'
@@ -30,11 +31,11 @@ class FlagDao(Dao):
                             status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
-        sql = f'select {self.fields} from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
+        sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
     def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagBy) -> List[Flag]:
-        sql = (f'select {self.fields} from flag where user_id=:private_id '
+        sql = (f'select {self.fields} from flag f where user_id=:private_id '
                + (f' or ({self.not_hide} and user_id=:user_id) ' if user_id is not None else '') +
                f'order by {get.order} {get.asc}')
         return self.execute(sql, user_id=user_id, private_id=private_id)
@@ -66,11 +67,12 @@ ST_GeographyFromText(ST_AsText(location)))<100000
 select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
     '''
 
-    def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[Flag]:
-        sql = (f'select {self.fields} from flag where '
+    def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
+        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_url from flag f inner join users u '
+               f'on f.user_id=u.id where '
                f'(user_id=:user_id or {self.not_hide}) and type=:type '
                "and ST_Distance(ST_GeographyFromText(:location), "
-               'ST_GeographyFromText(ST_AsText(location)))<:distance')
+               'ST_GeographyFromText(ST_AsText(f.location)))<:distance')
         return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
 
     def get_flag_by_map_region(self, user_id: UUID, get: GetFlagByMap) -> List[FlagRegion]:
@@ -108,7 +110,7 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
         sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
                f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name "
                'from fav left join flag f on fav.flag_id=f.id '
-               f'where fav.user_id=:user_id and {self.not_hide}')
+               f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id)')
         return self.execute(sql, user_id=user_id)
 
     def add_fav(self, user_id: UUID, flag_id: UUID):

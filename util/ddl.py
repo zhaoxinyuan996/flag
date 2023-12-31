@@ -156,7 +156,8 @@ CREATE INDEX receive_id_message_index ON message(receive_id);
 # 收藏表
 d9 = '''
 create table fav (
-user_id uuid primary key,
+id serial primary key,
+user_id uuid not null,
 flag_id uuid not null,
 create_time timestamp not null,
 extend1 text,
@@ -164,5 +165,5 @@ extend2 text,
 unique(user_id, flag_id)
 );
 
-CREATE INDEX fav_flag_id_index on fav (flag_id);
+CREATE INDEX fav_user_id_index on fav (user_id);
 '''

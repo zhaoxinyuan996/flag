@@ -195,6 +195,8 @@ def set_userinfo(set_: SetUserinfo):
 @custom_jwt()
 def follow_add(user: UserId):
     """关注"""
+    if not dao.exist(user.id):
+        return resp(RespMsg.user_not_exist)
     dao.follow_add(get_jwt_identity(), user.id)
     return resp(RespMsg.success)
 
