@@ -1,6 +1,5 @@
-from datetime import datetime
 from uuid import UUID
-
+from datetime import datetime, timedelta
 from pydantic import constr, confloat, conint
 from typing import Optional, List, Union
 from app.base_typedef import LOCATION
@@ -58,11 +57,13 @@ class Comment(Model):
     comment_time: Optional[datetime]
 
 
-class AddFlag(Flag):
+class AddFlag(Model):
+    id: Optional[UUID]
     user_id: UUID
     name: constr(min_length=1, max_length=20)
     content: _FLAG_CONTENT
 
+    location: LOCATION
     type: _TYPE
     status: _STATUS
     pictures: List[str]
@@ -74,9 +75,9 @@ class AddFlag(Flag):
         if self.temp:
             user_class = get_user_info().user_class
             if user_class is UserClass.vip:
-                return "current_timestamp + '24hours'"
+                return datetime.now() + timedelta(hours=24)
             elif user_class is UserClass.normal:
-                return "current_timestamp + '1hours'"
+                return datetime.now() + timedelta(hours=1)
             else:
                 return '-infinity'
         else:
