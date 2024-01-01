@@ -4,6 +4,8 @@ from uuid import UUID
 from pydantic import constr, confloat, conint
 from typing import Optional, List, Union
 from app.base_typedef import LOCATION
+from app.constants import UserClass
+from app.user.controller import get_user_info
 from app.util import Model
 from typedef import Order
 
@@ -34,6 +36,7 @@ class Flag(Model):
     update_time: Optional[datetime]
     pictures: Optional[List[str]]
     ico_name: Optional[str]
+    dead_line: Optional[datetime]
 
     @property
     def hide(self) -> bool:
@@ -64,6 +67,20 @@ class AddFlag(Flag):
     status: _STATUS
     pictures: List[str]
     ico_name: constr(max_length=20)
+    temp: bool
+
+    @property
+    def dead_line(self):
+        if self.temp:
+            user_class = get_user_info().user_class
+            if user_class is UserClass.vip:
+                return "current_timestamp + '24hours'"
+            elif user_class is UserClass.normal:
+                return "current_timestamp + '1hours'"
+            else:
+                return '-infinity'
+        else:
+            return None
 
 
 class UpdateFlag(AddFlag):

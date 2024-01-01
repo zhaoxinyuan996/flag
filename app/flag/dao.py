@@ -3,32 +3,34 @@ from uuid import UUID
 
 from app.base_dao import Dao
 from app.base_typedef import point
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag
+from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
+    AddFlag
 
 
 class FlagDao(Dao):
     fields = (f"f.id, f.user_id, {Dao.location('f.location', 'location')}, f.name, f.content, "
-              f'f.user_class, f.type, f.create_time, f.update_time, '
+              f'f.user_class, f.type, f.create_time, f.update_time, dead_line, '
               'pictures, status, ico_name ')
-    not_hide = 'status&1=0'
+    not_hide = 'status&1=0 and (dead_line is null or dead_line > now())'
     anonymous = 'status&0b10=0b10'
 
-    def add(self, flag: Flag, user_class: int) -> str:
+    def add(self, flag: AddFlag, user_class: int) -> str:
         sql = ('insert into flag '
                '(id, user_id, location, name, content, user_class, type, status, create_time, update_time, pictures,'
-               'ico_name) '
+               'ico_name, dead_line) '
                'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :status, '
-               'current_timestamp, current_timestamp, array[]::text[], :ico_name) returning id')
+               'current_timestamp, current_timestamp, array[]::text[], :ico_name, :dead_line) returning id')
         return self.execute(sql, user_id=flag.user_id, content=flag.content, status=flag.status, name=flag.name,
                             user_class=user_class, location=point(flag.location), type=flag.type,
-                            ico_name=flag.ico_name)
+                            ico_name=flag.ico_name, dead_line=flag.dead_line)
 
     def update(self, flag: UpdateFlag) -> Optional[int]:
         sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
-               'ico_name=:ico_name, pictures=:pictures '
+               'ico_name=:ico_name, pictures=:pictures, dead_line=:dead_line '
                'where id=:id and user_id=:user_id returning id')
         return self.execute(sql, id=flag.id, user_id=flag.user_id, name=flag.name, content=flag.content, type=flag.type,
-                            status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures)
+                            status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures,
+                            dead_line=flag.dead_line)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
         sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'

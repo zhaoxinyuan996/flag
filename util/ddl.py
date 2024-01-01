@@ -88,7 +88,7 @@ create_time timestamp not null,
 update_time timestamp not null,
 pictures text[] not null,
 ico_name text not null,
-extend2 text,
+dead_line timestamp,
 extend3 text,
 unique(location)
 );

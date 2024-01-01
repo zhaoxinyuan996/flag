@@ -19,8 +19,8 @@ module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 log = logging.getLogger(__name__)
-with open(os.path.join(os.path.dirname(__file__), 'location_code.json'), encoding='utf-8') as city_file:
-    location_code = json.loads(city_file.read())
+# with open(os.path.join(os.path.dirname(__file__), 'location_code.json'), encoding='utf-8') as city_file:
+#     location_code = json.loads(city_file.read())
 
 
 def ex_user(f: Flag) -> set:
@@ -241,7 +241,7 @@ def delete_comment(flag: FlagId):
     return resp(RespMsg.success)
 
 
-@bp.route('/get-city', methods=['post'])
-@custom_jwt()
-def get_city():
-    return resp(location_code)
+# @bp.route('/get-city', methods=['post'])
+# @custom_jwt()
+# def get_city():
+#     return resp(location_code)
