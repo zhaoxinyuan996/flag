@@ -26,11 +26,10 @@ class FlagDao(Dao):
 
     def update(self, flag: UpdateFlag) -> Optional[int]:
         sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
-               'ico_name=:ico_name, pictures=:pictures, dead_line=:dead_line '
+               'ico_name=:ico_name, pictures=:pictures '
                'where id=:id and user_id=:user_id returning id')
         return self.execute(sql, id=flag.id, user_id=flag.user_id, name=flag.name, content=flag.content, type=flag.type,
-                            status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures,
-                            dead_line=flag.dead_line)
+                            status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
         sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
