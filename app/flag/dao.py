@@ -109,8 +109,8 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
 
     def get_fav(self, user_id: UUID) -> List[FavFlag]:
         sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
-               f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name "
-               'from fav left join flag f on fav.flag_id=f.id '
+               f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name, "
+               'pictures, dead_line from fav left join flag f on fav.flag_id=f.id '
                f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id)')
         return self.execute(sql, user_id=user_id)
 

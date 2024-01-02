@@ -142,6 +142,8 @@ class FavFlag(Model):
     user_class: Optional[int]
     update_time: Optional[datetime]
     ico_name: Optional[str]
+    pictures: Optional[List[str]]
+    dead_line: Optional[datetime]
 
 
 class FlagId(Model):
