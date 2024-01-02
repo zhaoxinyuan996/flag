@@ -84,8 +84,15 @@ class AddFlag(Model):
             return None
 
 
-class UpdateFlag(AddFlag):
-    id: UUID
+class UpdateFlag(Model):
+    id: Optional[UUID]
+    user_id: UUID
+    name: constr(min_length=1, max_length=20)
+    content: _FLAG_CONTENT
+    type: _TYPE
+    status: _STATUS
+    pictures: List[str]
+    ico_name: constr(max_length=20)
 
 
 class GetFlagBy(Order):
