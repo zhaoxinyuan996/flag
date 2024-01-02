@@ -75,6 +75,10 @@ class RespMsg:
         'en': 'user not exist',
         'code': -252
     })
+    cant_follow_self = Message({
+        'zh': '不能关注自己',
+        'en': 'cant follow self'
+    })
     user_sign_in_success = Message({
         'zh': '登录成功',
         'en': 'sign in success'
@@ -152,7 +156,7 @@ _codes = set()
 for v in vars(RespMsg).values():
     if isinstance(v, Message) and 'code' in v:
         if v['code'] in _codes:
-            RuntimeError(f'code码重复：{v}')
+            raise RuntimeError(f'code码重复：{v}')
         _codes.add(v['code'])
     else:
         continue

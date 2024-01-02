@@ -197,7 +197,10 @@ def follow_add(user: UserId):
     """关注"""
     if not dao.exist(user.id):
         return resp(RespMsg.user_not_exist)
-    dao.follow_add(get_jwt_identity(), user.id)
+    user_id = get_jwt_identity()
+    if user_id == str(user.id):
+        return resp(RespMsg.cant_follow_self, -1)
+    dao.follow_add(user_id, user.id)
     return resp(RespMsg.success)
 
 
