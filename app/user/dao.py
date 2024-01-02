@@ -47,13 +47,14 @@ class UserDao(Dao):
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
     def follow_star(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname, u.vip_deadline, u.block_deadline, u.signature '
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_url, u.vip_deadline, u.block_deadline '
                'from follow f inner join users u '
                'on f.star_id=u.id where f.fans_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def follow_fans(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname, u.username, u.signature from follow f inner join users u '
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_url, u.vip_deadline, u.block_deadline '
+               'from follow f inner join users u '
                'on f.fans_id=u.id where f.star_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
