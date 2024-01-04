@@ -34,7 +34,7 @@ def get_region_flag(user_id: str, get: GetFlagByMap) -> List[dict]:
     code = dao.get_city_by_location(get.location)
     if not code:
         return []
-    key = f'{get.type}-{code}'
+    key = f'region-flag-{get.type}-{code}'
     # 缓存
     if value := redis_cli.get(key):
         return json.loads(value)
