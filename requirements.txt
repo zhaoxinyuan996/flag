@@ -10,6 +10,6 @@ cachetools==5.3.2
 requests==2.31.0
 flask_jwt_extended==4.6.0
 flask-sqlalchemy==3.1.1
-
+flask-redis==3.0.0
 # linux
 uwsgi==2.0.23

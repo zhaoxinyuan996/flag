@@ -6,25 +6,42 @@ from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, Response, g
 from flask_jwt_extended import get_jwt_identity
-from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg
+from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout
 from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
     AddComment, AddSubComment, FlagId, GetFlagByMap, Flag
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
-from util.database import db
+from util.database import db, redis_cli
 from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 log = logging.getLogger(__name__)
+
+
 # with open(os.path.join(os.path.dirname(__file__), 'location_code.json'), encoding='utf-8') as city_file:
 #     location_code = json.loads(city_file.read())
 
 
 def ex_user(f: Flag) -> set:
     return {'user_id'} if str(f.user_id) != get_jwt_identity() and f.hide else {}
+
+
+def get_region_flag(user_id: str, get: GetFlagByMap) -> List[dict]:
+    """根据定位位置获取区域内所有的点位"""
+    code = dao.get_city_by_location(get.location)
+    if not code:
+        return []
+    key = f'{get.type}-{code}'
+    # 缓存
+    if value := redis_cli.get(key):
+        return json.loads(value)
+    else:
+        value = json.dumps([f.model_dump() for f in dao.get_flag_by_city(user_id, code, get)])
+        redis_cli.set(key, value, ex=CacheTimeout.region_flag)
+        return value
 
 
 def _build(content: str) -> List[Tuple[str, bytes]]:
@@ -125,19 +142,15 @@ def get_flag(get: GetFlagBy):
 @args_parse(GetFlagByMap)
 @custom_jwt()
 def get_flag_by_map(get: GetFlagByMap):
-    print(get.distance, get.location)
     # 10公里内4倍检索，返回详细标记
     if get.distance < 10000:
         get.distance *= 2
-        return resp({
-            'detail': True,
-            'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)]})
+        return resp({'detail': True,
+                     'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)]})
     # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
         get.distance *= 1.5
-        return resp({
-            'detail': False,
-            'flags': [f.model_dump() for f in dao.get_flag_by_map_region(get_jwt_identity(), get)]})
+        return resp({'detail': False, 'flags': get_region_flag(get_jwt_identity(), get)})
 
 
 @bp.route('/set-flag-type', methods=['post'])
@@ -229,7 +242,7 @@ def get_comment(flag: FlagId):
     user_id = get_jwt_identity()
     if not dao.flag_is_open(user_id, flag.id):
         return resp(RespMsg.flag_not_exist)
-    return resp([c.model_dump() for c in dao.get_comment(flag,  user_id)])
+    return resp([c.model_dump() for c in dao.get_comment(flag, user_id)])
 
 
 @bp.route('/delete-comment', methods=['post'])
@@ -239,7 +252,6 @@ def delete_comment(flag: FlagId):
     """删除评论"""
     dao.delete_comment(flag.id, get_jwt_identity())
     return resp(RespMsg.success)
-
 
 # @bp.route('/get-city', methods=['post'])
 # @custom_jwt()

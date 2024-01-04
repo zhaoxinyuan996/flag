@@ -1,4 +1,6 @@
 import logging
+
+from flask_redis import FlaskRedis
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine.result import RMKeyView
@@ -29,6 +31,9 @@ class SQLAlchemy(_SQLAlchemy):
             log.info(str(records))
             return response.keys(), records
         return None
+
+
+redis_cli = FlaskRedis()
 
 
 db = SQLAlchemy()

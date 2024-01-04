@@ -2,11 +2,11 @@
 import logging
 from datetime import datetime
 from functools import wraps
+from pydantic import BaseModel
 from typing import Any, Optional
 from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request, get_jwt, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
-from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 from .base_dao import build_model
@@ -83,6 +83,8 @@ class JSONProvider(DefaultJSONProvider):
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
+        elif isinstance(obj, BaseModel):
+            return obj.model_dump_json()
 
         return super().default(obj)
 

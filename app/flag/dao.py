@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 from uuid import UUID
 
 from app.base_dao import Dao
-from app.base_typedef import point
+from app.base_typedef import point, LOCATION
 from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
     AddFlag
 
@@ -76,14 +76,15 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
                'ST_GeographyFromText(ST_AsText(f.location)))<:distance')
         return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
 
-    def get_flag_by_map_region(self, user_id: UUID, get: GetFlagByMap) -> List[FlagRegion]:
-        sql = ('with s as( '
-               '\n-- 市本级\n'
-               'select a.code from adcode a inner join fences f on a.adcode=f.adcode '
-               'where a.rank=2 and ST_Contains(f.fence,ST_GeomFromText(:location))), '
-               's0 as( '
+    def get_city_by_location(self, location: LOCATION) -> Optional[int]:
+        sql = ('select a.code from adcode a inner join fences f on a.adcode=f.adcode '
+               'where a.rank=2 and not virtual and ST_Contains(f.fence,ST_GeomFromText(:location))')
+        return self.execute(sql, location=point(location))
+
+    def get_flag_by_city(self, user_id: UUID, code, get: GetFlagByMap) -> List[FlagRegion]:
+        sql = ('with s0 as( '
                '\n-- 根据所在市查找下属区县\n'
-               'select a.adcode, a.name, a.rank, a.center from s inner join adcode a on s.code=a.parent), '
+               'select a.adcode, a.name, a.rank, a.center from adcode a where parent=:code), '
                's1 as ( '
                '\n-- 下属区县的电子围栏\n'
                'select s0.name region_name, center, f.fence from s0 inner join fences f on s0.adcode=f.adcode '
@@ -96,8 +97,7 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
                f"select count(location) flag_num, s1.region_name, {Dao.location('s1.center', 'location')} "
                'from s1 left join s2 on ST_Contains(s1.fence,s2.location) '
                f'group by s1.region_name, s1.center')
-        return self.execute(
-            sql, user_id=user_id, type=get.type, location=point(get.location))
+        return self.execute(sql, user_id=user_id, code=code, type=get.type)
 
     def set_flag_type(self, user_id: UUID, flag_id: UUID, flag_type: int):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'

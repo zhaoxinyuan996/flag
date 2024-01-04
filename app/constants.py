@@ -2,6 +2,11 @@ from enum import EnumMeta, Enum
 from typing import Union
 
 
+class CacheTimeout:
+    """缓存超时时间"""
+    region_flag = 1800
+
+
 class InEnumMeta(EnumMeta):
     def __contains__(cls, member):
         return member in cls._value2member_map_
