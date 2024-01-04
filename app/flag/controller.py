@@ -39,8 +39,8 @@ def get_region_flag(user_id: str, get: GetFlagByMap) -> List[dict]:
     if value := redis_cli.get(key):
         return json.loads(value)
     else:
-        value = json.dumps([f.model_dump() for f in dao.get_flag_by_city(user_id, code, get)])
-        redis_cli.set(key, value, ex=CacheTimeout.region_flag)
+        value = [f.model_dump() for f in dao.get_flag_by_city(user_id, code, get)]
+        redis_cli.set(key, json.dumps(value), ex=CacheTimeout.region_flag)
         return value
 
 
@@ -149,7 +149,6 @@ def get_flag_by_map(get: GetFlagByMap):
                      'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)]})
     # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
-        get.distance *= 1.5
         return resp({'detail': False, 'flags': get_region_flag(get_jwt_identity(), get)})
 
 
