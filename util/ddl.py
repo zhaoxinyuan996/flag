@@ -23,7 +23,7 @@ vip_deadline timestamp,
 block_deadline timestamp,
 alive_deadline timestamp,
 belong text,
-location geometry(geometry,4326),
+local text,
 extend1 text,
 extend2 text,
 extend3 text

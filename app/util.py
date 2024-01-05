@@ -21,11 +21,11 @@ from flask import request, jsonify, current_app, g
 log = logging.getLogger(__name__)
 
 
-def get_location(user_id: int, ip: str):
+def refresh_user(user_id: int, ip: str):
     """获取ip位置"""
     from app import app
 
-    def _get_location():
+    def _get_local():
         try:
             data = requests.get(api + ip).json()
             log.info(str(data))
@@ -40,14 +40,14 @@ def get_location(user_id: int, ip: str):
     )
     idx_list = [i for i in range(len(apis))]
     random.shuffle(idx_list)
-    location = ''
+    local = ''
     for i in idx_list:
         api, key = apis[i]
-        location = _get_location()
-        if location:
+        local = _get_local()
+        if local:
             break
     with app.app_context():
-        base_dao.refresh(user_id, location=location)
+        base_dao.refresh(user_id, local=local)
         db.session.commit()
 
 
@@ -85,7 +85,7 @@ def resp(msg: Any, code: int = 0, **kwargs):
             user_id = jwt_info['sub']
             access_token = create_access_token(identity=user_id)
             # 添加ip的时候启动这个
-            DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
+            DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
             return jsonify({'msg': msg, 'code': code, 'access_token': access_token, **kwargs})
     # 如果不在jwt的装饰器请求中会报错，忽略
     except RuntimeError:

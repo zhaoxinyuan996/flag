@@ -5,7 +5,7 @@ import requests
 from app.user.dao import dao
 from functools import partial
 from flask import Blueprint, request
-from app.util import resp, custom_jwt, args_parse, get_location
+from app.util import resp, custom_jwt, args_parse, refresh_user
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -61,7 +61,7 @@ def sign_in(user: SignIn):
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
-        DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
+        DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
         return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
         return resp(RespMsg.user_sign_in_password_error, -1)
@@ -87,7 +87,7 @@ def sign_up_wechat(wechat: SignWechat):
             dao.third_part_sigh_up_user(user_id)
 
     access_token = create_access_token(identity=user_id)
-    DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
+    DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
@@ -97,7 +97,7 @@ def sign_up_wechat(wechat: SignWechat):
 #     """更新jwt，要结合更多的redis？用户状态控制？"""
 #     user_id = get_jwt_identity()
 #     access_token = create_access_token(identity=user_id)
-#     DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
+#     DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
 #     return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 
@@ -115,7 +115,7 @@ def user_info():
         return resp(RespMsg.user_not_exist, -1)
     return resp(res.model_dump(include={
         'id', 'nickname', 'username', 'signature', 'avatar_url', 'vip_deadline',
-        'block_deadline', 'belong', 'location'
+        'block_deadline', 'belong', 'local'
     }))
 
 

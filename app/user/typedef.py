@@ -33,7 +33,7 @@ class User(Model):
     alive_deadline: Optional[datetime]
 
     belong: Optional[str]
-    location: Optional[LOCATION]
+    local: Optional[str]
 
 
 class UserInfo(Model):
