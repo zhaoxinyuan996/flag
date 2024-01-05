@@ -1,9 +1,11 @@
 from datetime import datetime
 from functools import partial
 from typing import Callable, Any, Union
+from uuid import UUID
 
 from sqlalchemy import Row
 
+from app.base_typedef import LOCATION, point
 from util.database import db
 
 
@@ -79,3 +81,11 @@ class Dao:
     def location(column: str, rename: str = None):
         """列名，重命名"""
         return f'array[ST_y({column}), ST_x({column})] {rename or column}'
+
+    def refresh(self, user_id: UUID, location: LOCATION):
+        sql = ('update users set alive_deadline=current_timestamp, location=:location '
+               'where id=:user_id')
+        return self.execute(sql, user_id=user_id, location=point(location))
+
+
+base_dao = Dao()

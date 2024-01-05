@@ -33,11 +33,6 @@ class UserDao(Dao):
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
-    def refresh(self, user_id: UUID, location: LOCATION):
-        sql = ('update users set alive_deadline=current_timestamp, location=point(:location) '
-               'where id=:user_id')
-        return self.execute(sql, user_id=user_id, location=location)
-
     def follow_add(self, fans_id: int, star_id: int):
         sql = 'insert into follow (fans_id ,star_id) values(:fans_id, :star_id)'
         return self.execute(sql, fans_id=fans_id, star_id=star_id)

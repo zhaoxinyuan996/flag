@@ -1,14 +1,12 @@
 import logging
 import os
 import re
-import random
-
 import requests
 from app.user.dao import dao
 from functools import partial
 from flask import Blueprint, request
-from app.util import resp, custom_jwt, args_parse
-from app.constants import RespMsg, allow_picture_type, user_picture_size, UserClass, FileType, AppError
+from app.util import resp, custom_jwt, args_parse, get_location
+from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
@@ -34,36 +32,6 @@ def get_user_info() -> UserInfo:
     if not info:
         raise AppError(RespMsg.user_not_exist)
     return info
-
-
-def get_location(user_id: int, ip: str):
-    """获取ip位置"""
-    from app import app
-
-    def _get_location():
-        try:
-            data = requests.get(api + ip).json()
-            log.info(str(data))
-            return data[key]
-        except requests.RequestException:
-            return None
-
-    apis = (
-        ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
-        ('http://www.ip508.com/ip?q=', 'addr'),
-        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=', 'addr'),
-    )
-    idx_list = [i for i in range(len(apis))]
-    random.shuffle(idx_list)
-    location = ''
-    for i in idx_list:
-        api, key = apis[i]
-        location = _get_location()
-        if location:
-            break
-    with app.app_context():
-        dao.refresh(user_id, location=location)
-        db.session.commit()
 
 
 def exists_black_list(user_id: int, black_id: int) -> bool:
@@ -114,7 +82,6 @@ def sign_up_wechat(wechat: SignWechat):
     new = False
     if user_id is None:
         new = True
-        from app import app
         with db.auto_commit():
             user_id = dao.third_part_sigh_up_third('wechat', open_id, '')
             dao.third_part_sigh_up_user(user_id)
