@@ -78,7 +78,7 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
 
     def get_city_by_location(self, location: LOCATION) -> Optional[int]:
         sql = ('select a.code from adcode a inner join fences f on a.adcode=f.adcode '
-               'where a.rank=2 and not virtual and ST_Contains(f.fence,ST_GeomFromText(:location))')
+               'where a.rank=2 and ST_Contains(f.fence,ST_GeomFromText(:location))')
         return self.execute(sql, location=point(location))
 
     def get_flag_by_city(self, user_id: UUID, code, get: GetFlagByMap) -> List[FlagRegion]:

@@ -31,7 +31,7 @@ def ex_user(f: Flag) -> set:
 
 def get_region_flag(user_id: str, get: GetFlagByMap) -> Tuple[int, List[dict]]:
     """根据定位位置获取区域内所有的点位"""
-    code = dao.get_city_by_location(get.location)
+    code = dao.get_city_by_location(get.location) or 0
     if not code:
         return 0, []
     key = f'region-flag-{get.type}-{code}'
