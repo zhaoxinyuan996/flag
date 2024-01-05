@@ -56,8 +56,8 @@ def _refresh_user(user_id: str, ip: str):
 
 def refresh_user(user_id: str):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
-    log.warning(str(request.headers))
-    return partial(_refresh_user, user_id, request.headers.get('REMOTE-HOST', request.remote_addr))
+    remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
+    return partial(_refresh_user, user_id, remote_ip)
 
 
 def custom_jwt(
