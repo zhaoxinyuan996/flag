@@ -87,6 +87,7 @@ def sign_up_wechat(wechat: SignWechat):
             dao.third_part_sigh_up_user(user_id)
 
     access_token = create_access_token(identity=user_id)
+    DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
