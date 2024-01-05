@@ -21,7 +21,7 @@ from flask import request, jsonify, current_app, g
 log = logging.getLogger(__name__)
 
 
-def _refresh_user(user_id: int, ip: str):
+def _refresh_user(user_id: str, ip: str):
     """获取ip位置"""
     from app import app
 
@@ -32,6 +32,9 @@ def _refresh_user(user_id: int, ip: str):
             return data[key]
         except requests.RequestException:
             return None
+
+    if ip == '127.0.0.1':
+        return
 
     apis = (
         ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
@@ -53,6 +56,7 @@ def _refresh_user(user_id: int, ip: str):
 
 def refresh_user(user_id: str):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
+    print(request.headers)
     return partial(_refresh_user, user_id, request.headers.get('REMOTE-HOST', request.remote_addr))
 
 
