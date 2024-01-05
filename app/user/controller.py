@@ -61,7 +61,7 @@ def sign_in(user: SignIn):
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
-        DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
+        DelayJob.job_queue.put(refresh_user(user_id))
         return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
         return resp(RespMsg.user_sign_in_password_error, -1)
@@ -87,7 +87,7 @@ def sign_up_wechat(wechat: SignWechat):
             dao.third_part_sigh_up_user(user_id)
 
     access_token = create_access_token(identity=user_id)
-    DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
+    DelayJob.job_queue.put(refresh_user(user_id))
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
@@ -97,7 +97,7 @@ def sign_up_wechat(wechat: SignWechat):
 #     """更新jwt，要结合更多的redis？用户状态控制？"""
 #     user_id = get_jwt_identity()
 #     access_token = create_access_token(identity=user_id)
-#     DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
+#     DelayJob.job_queue.put(refresh_user(user_id))
 #     return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 

@@ -29,7 +29,7 @@ class UserDao(Dao):
 
     def user_info(self, user_id: UUID) -> Optional[User]:
         sql = ('select id, username, nickname, avatar_url, signature, '
-               'vip_deadline, block_deadline, belong, location '
+               'vip_deadline, block_deadline, belong, local '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 

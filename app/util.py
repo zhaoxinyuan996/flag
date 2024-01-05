@@ -21,7 +21,7 @@ from flask import request, jsonify, current_app, g
 log = logging.getLogger(__name__)
 
 
-def refresh_user(user_id: int, ip: str):
+def _refresh_user(user_id: int, ip: str):
     """获取ip位置"""
     from app import app
 
@@ -49,6 +49,11 @@ def refresh_user(user_id: int, ip: str):
     with app.app_context():
         base_dao.refresh(user_id, local=local)
         db.session.commit()
+
+
+def refresh_user(user_id: str):
+    """刷新用户的最后活跃时间和网络ip的解析地址"""
+    return partial(_refresh_user, user_id, request.headers.get('REMOTE-HOST', request.remote_addr))
 
 
 def custom_jwt(
@@ -85,7 +90,7 @@ def resp(msg: Any, code: int = 0, **kwargs):
             user_id = jwt_info['sub']
             access_token = create_access_token(identity=user_id)
             # 添加ip的时候启动这个
-            DelayJob.job_queue.put(partial(refresh_user, user_id, request.remote_addr))
+            DelayJob.job_queue.put(refresh_user(user_id))
             return jsonify({'msg': msg, 'code': code, 'access_token': access_token, **kwargs})
     # 如果不在jwt的装饰器请求中会报错，忽略
     except RuntimeError:
