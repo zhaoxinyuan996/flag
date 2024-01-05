@@ -56,7 +56,7 @@ def _refresh_user(user_id: str, ip: str):
 
 def refresh_user(user_id: str):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
-    print(request.headers)
+    log.warning(str(request.headers))
     return partial(_refresh_user, user_id, request.headers.get('REMOTE-HOST', request.remote_addr))
 
 
