@@ -4,10 +4,11 @@ from typing import Tuple, Optional, List
 from uuid import UUID
 
 from app.base_dao import Dao
-from app.base_typedef import LOCATION
 from app.user.typedef import User, UserInfo
 
 vip_deadline = 'infinity'
+default_avatar_url = ('https://mmbiz.qpic.cn/mmbiz/'
+                      'icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0')
 
 
 def ran_nickname():
@@ -99,10 +100,10 @@ class UserDao(Dao):
         return self.execute(sql, login_type=login_type, open_id=open_id, access_token=access_token)
 
     def third_part_sigh_up_user(self, user_id: UUID) -> int:
-        sql = ('insert into users (id, nickname, signature, create_time, vip_deadline, block_deadline, '
+        sql = ('insert into users (id, nickname, signature, avatar_url, create_time, vip_deadline, block_deadline, '
                'alive_deadline) values'
-               f"(:user_id, :nickname, '说点想说的吧！', current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) "
-               "returning id")
+               f"(:user_id, :nickname, '说点想说的吧！', {default_avatar_url}, "
+               f"current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) returning id")
         return self.execute(sql, user_id=user_id, nickname=ran_nickname())
 
     def set_avatar_url(self, user_id: UUID, avatar_url: str) -> Optional[str]:
