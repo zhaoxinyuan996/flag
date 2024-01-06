@@ -6,8 +6,7 @@ from app.base_typedef import LOCATION
 from app.constants import UserClass
 from app.user.controller import get_user_info
 from app.util import Model
-from typedef import Order
-
+from typedef import Order, OrderField
 
 _TYPE = conint(ge=0, le=1)
 _STATUS = conint(ge=0, le=3)
@@ -95,7 +94,17 @@ class UpdateFlag(Model):
     ico_name: constr(max_length=20)
 
 
-class GetFlagBy(Order):
+class GetFlagByOrderField(OrderField):
+    id = 'id'
+    flag = 'flag'
+    create_time = 'create_time'
+
+
+class GetFlagByOrder(Order):
+    order: GetFlagByOrderField
+
+
+class GetFlagBy(GetFlagByOrder):
     by: Optional[str]
     key: Union[None, UUID, LOCATION]
 

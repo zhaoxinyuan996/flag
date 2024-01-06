@@ -1,11 +1,26 @@
+from enum import Enum
 from typing import Optional
 
 from app.util import Model
 
 
+class OrderField(Enum):
+    """重写"""
+    ...
+
+
+class OrderSc(Enum):
+    asc = 'asc'
+    desc = 'desc'
+
+
 class Order(Model):
-    order: str = 'id'
-    asc: str = 'asc'
+    order: OrderField
+    asc: OrderSc = OrderSc.asc
+
+    @property
+    def order_by(self):
+        return f' {self.order.value} {self.asc.value}'
 
 
 class Page(Model):

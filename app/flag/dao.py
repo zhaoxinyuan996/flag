@@ -36,9 +36,11 @@ class FlagDao(Dao):
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
     def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagBy) -> List[Flag]:
-        sql = (f'select {self.fields} from flag f where user_id=:private_id '
-               + (f' or ({self.not_hide} and user_id=:user_id) ' if user_id is not None else '') +
-               f'order by {get.order} {get.asc}')
+        if user_id:
+            condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
+        else:
+            condition = ' user_id=:private_id '
+        sql = f'select {self.fields} from flag f where {condition} order by {get.order_by}'
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     '''
