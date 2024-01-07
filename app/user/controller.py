@@ -7,7 +7,7 @@ from functools import partial
 from flask import Blueprint, request
 from app.util import resp, custom_jwt, args_parse, refresh_user
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError
-from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo
+from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
@@ -102,21 +102,23 @@ def sign_up_wechat(wechat: SignWechat):
 
 
 @bp.route('/user-info', methods=['post'])
+@args_parse(QueryUser)
 @custom_jwt()
-def user_info():
+def user_info(query: QueryUser):
     # 查看别人的信息
-    if request.data:
-        user_id = str(request.json['id'])
-        res = dao.user_info(user_id)
+    user_id = get_jwt_identity()
+    if query.id:
+        # 判断是否在黑名单中
+        if dao.exist_black_list(query.id, user_id):
+            return resp(RespMsg.user_in_black_list)
+        res = dao.other_user_info(query.id, user_id)
+        if not res:
+            return resp(RespMsg.user_not_exist)
+        return resp(res.model_dump())
     # 查看自己的信息
     else:
-        res = dao.user_info(get_jwt_identity())
-    if not res:
-        return resp(RespMsg.user_not_exist, -1)
-    return resp(res.model_dump(include={
-        'id', 'nickname', 'username', 'signature', 'avatar_url', 'vip_deadline',
-        'block_deadline', 'belong', 'local'
-    }))
+        res = dao.user_info(user_id)
+        return resp(res.model_dump())
 
 
 @bp.route('/upload-avatar', methods=['post'])

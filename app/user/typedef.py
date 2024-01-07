@@ -19,7 +19,7 @@ class User(Model):
     username: Optional[str]
     password: Optional[str]
     phone: Optional[int]
-    sex: Optional[int]
+    is_man: Optional[int]
     flag_num: Optional[int]
 
     wechat_id: Optional[str]
@@ -34,6 +34,23 @@ class User(Model):
 
     belong: Optional[str]
     local: Optional[str]
+
+
+class QueryUser(Model):
+    id: Optional[UUID]
+
+
+class OtherUser(Model):
+    nickname: _NICKNAME
+    is_man: Optional[int]
+
+    signature: _SIGNATURE
+    avatar_url: str
+
+    vip_deadline: datetime
+    block_deadline: datetime
+
+    is_follow: int
 
 
 class UserInfo(Model):

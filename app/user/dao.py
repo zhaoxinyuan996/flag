@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List
 from uuid import UUID
 
 from app.base_dao import Dao
-from app.user.typedef import User, UserInfo
+from app.user.typedef import User, UserInfo, OtherUser
 
 vip_deadline = 'infinity'
 default_avatar_url = ('https://mmbiz.qpic.cn/mmbiz/'
@@ -33,6 +33,13 @@ class UserDao(Dao):
                'vip_deadline, block_deadline, belong, local '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
+
+    def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
+        sql = ('select nickname, is_man, signature, avatar_url, '
+               'vip_deadline, block_deadline, f.fans_id is not null is_follow '
+               'from users u left join follow f on u.id=f.star_id '
+               'and f.fans_id=:user_id  where u.id=:other_id')
+        return self.execute(sql, other_id=other_id, user_id=user_id)
 
     def follow_add(self, fans_id: int, star_id: int):
         sql = 'insert into follow (fans_id ,star_id) values(:fans_id, :star_id)'

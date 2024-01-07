@@ -75,6 +75,10 @@ class RespMsg:
         'zh': '密码强度不足',
         'en': 'password is too weak'
     })
+    user_in_black_list = Message({
+        'zh': '你在黑名单中',
+        'en': 'you are in black list',
+    })
     user_not_exist = Message({
         'zh': '用户不存在',
         'en': 'user not exist',
