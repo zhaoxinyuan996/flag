@@ -16,12 +16,18 @@ log = logging.getLogger(__name__)
 
 
 '''
-g注入了2个属性
+g注入了4个属性
 语言
 g.language
 
 基于请求的错误信息，主要在事务中，可以多步设定，更灵活返回报错信息
 g.error_resp
+
+g.user_id
+全局用户uuid
+
+g.access_token
+需要刷新的话就赋值
 '''
 e_code = 500
 
@@ -31,6 +37,8 @@ def init(_app: Flask):
     def before():
         """设置语言"""
         g.language = 'zh'
+        g.user_id = None
+        g.access_token = None
 
     @_app.after_request
     def after(response: Response):

@@ -1,10 +1,11 @@
 import logging
 import os
 import re
+from uuid import UUID
+
 import requests
 from app.user.dao import dao
-from functools import partial
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse, refresh_user
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
@@ -34,7 +35,7 @@ def get_user_info() -> UserInfo:
     return info
 
 
-def exists_black_list(user_id: int, black_id: int) -> bool:
+def exists_black_list(user_id: UUID, black_id: UUID) -> bool:
     return bool(dao.exist_black_list(user_id, black_id))
 
 
@@ -95,7 +96,7 @@ def sign_up_wechat(wechat: SignWechat):
 # @custom_jwt()
 # def refresh_jwt():
 #     """更新jwt，要结合更多的redis？用户状态控制？"""
-#     user_id = get_jwt_identity()
+#     user_id = g.user_id
 #     access_token = create_access_token(identity=user_id)
 #     DelayJob.job_queue.put(refresh_user(user_id))
 #     return resp(RespMsg.user_sign_in_success, access_token=access_token)
@@ -106,7 +107,7 @@ def sign_up_wechat(wechat: SignWechat):
 @custom_jwt()
 def user_info(query: QueryUser):
     # 查看别人的信息
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     if query.id:
         # 判断是否在黑名单中
         if dao.exist_black_list(query.id, user_id):
@@ -125,7 +126,7 @@ def user_info(query: QueryUser):
 @custom_jwt()
 def upload_avatar():
     """设置头像"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     suffix = request.files['file'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
@@ -137,7 +138,7 @@ def upload_avatar():
     filename = f'{user_id}.{file_minio.random_str()}.{suffix}'
     url = file_minio.get_file_url(filename, FileType.head_pic)
 
-    old_filename = dao.set_userinfo(user_id, {'avatar_url': url})
+    old_filename = dao.set_avatar_url(user_id, url)
 
     file_minio.upload(filename, FileType.head_pic, b)
     file_minio.remove_object(old_filename, FileType.head_pic)
@@ -156,7 +157,7 @@ def set_userinfo(set_: SetUserinfo):
     # pydantic和url
     if 'avatar' in info:
         info['avatar'] = str(info['avatar'])
-    dao.set_userinfo(get_jwt_identity(), info)
+    dao.set_userinfo(g.user_id, info)
     return resp(RespMsg.success)
 
 
@@ -167,7 +168,7 @@ def follow_add(user: UserId):
     """关注"""
     if not dao.exist(user.id):
         return resp(RespMsg.user_not_exist)
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     if user_id == str(user.id):
         return resp(RespMsg.cant_follow_self, -1)
     dao.follow_add(user_id, user.id)
@@ -179,7 +180,7 @@ def follow_add(user: UserId):
 @custom_jwt()
 def follow_remove(user: UserId):
     """取关"""
-    dao.follow_remove(get_jwt_identity(), user.id)
+    dao.follow_remove(g.user_id, user.id)
     return resp(RespMsg.success)
 
 
@@ -225,7 +226,7 @@ def set_black(black: UserId):
     if not dao.exist(black.id):
         return resp(RespMsg.user_not_exist, -1)
 
-    dao.set_black(get_jwt_identity(), black.id)
+    dao.set_black(g.user_id, black.id)
     return resp(RespMsg.success)
 
 
@@ -234,7 +235,7 @@ def set_black(black: UserId):
 @custom_jwt()
 def unset_black(black: UserId):
     """解除拉黑"""
-    dao.unset_black(get_jwt_identity(), black.id)
+    dao.unset_black(g.user_id, black.id)
     return resp(RespMsg.success)
 
 

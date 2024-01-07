@@ -85,4 +85,4 @@ class Dao:
         return self.execute(sql, user_id=user_id, local=local)
 
 
-base_dao = Dao()
+base_dao: Dao = Dao()

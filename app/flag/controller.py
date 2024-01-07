@@ -2,6 +2,8 @@ import json
 import os
 import logging
 from typing import List, Tuple, Union
+from uuid import UUID
+
 from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, Response, g
@@ -26,10 +28,10 @@ log = logging.getLogger(__name__)
 
 
 def ex_user(f: Flag) -> set:
-    return {'user_id'} if str(f.user_id) != get_jwt_identity() and f.hide else {}
+    return {'user_id'} if str(f.user_id) != g.user_id and f.hide else {}
 
 
-def get_region_flag(user_id: str, get: GetFlagByMap) -> Tuple[int, List[dict]]:
+def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
     """根据定位位置获取区域内所有的点位"""
     code = dao.get_city_by_location(get.location) or 0
     if not code:
@@ -74,7 +76,7 @@ def _build(content: str) -> List[Tuple[str, bytes]]:
 
 def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
     """新增和修改"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     _flag = get_request_list(request.form)
     _flag['user_id'] = user_id
     _flag['pictures'] = []
@@ -128,7 +130,7 @@ def update():
 @args_parse(GetFlagByUser)
 @custom_jwt()
 def get_flag_by_user(get: GetFlagByUser):
-    return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_user(get.id, get_jwt_identity(), get)])
+    return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_user(get.id, g.user_id, get)])
 
 
 @bp.route('/get-flag-by-flag', methods=['post'])
@@ -150,10 +152,10 @@ def get_flag_by_map(get: GetFlagByMap):
         return resp({
             'code': None,
             'detail': True,
-            'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(get_jwt_identity(), get)]})
+            'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(g.user_id, get)]})
     # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
-        code, data = get_region_flag(get_jwt_identity(), get)
+        code, data = get_region_flag(g.user_id, get)
         return resp({'code': code, 'detail': False, 'flags': data})
 
 
@@ -161,7 +163,7 @@ def get_flag_by_map(get: GetFlagByMap):
 @args_parse(SetFlagType)
 @custom_jwt()
 def set_flag_type(set_: SetFlagType):
-    dao.set_flag_type(get_jwt_identity(), set_.id, set_.type)
+    dao.set_flag_type(g.user_id, set_.id, set_.type)
     return resp(RespMsg.success)
 
 
@@ -170,7 +172,7 @@ def set_flag_type(set_: SetFlagType):
 @custom_jwt()
 def delete(delete_: FlagId):
     """删除标记"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     with db.auto_commit():
         # 先删除，如果存在则更新用户表
         dao.delete(user_id, delete_.id) is None or user_dao.delete_flag(user_id)
@@ -181,7 +183,7 @@ def delete(delete_: FlagId):
 @custom_jwt()
 def get_fav():
     """我的收藏"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
 
     return resp([i.model_dump() for i in dao.get_fav(user_id)])
 
@@ -191,7 +193,7 @@ def get_fav():
 @custom_jwt()
 def add_fav(delete_: FlagId):
     """删除收藏"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     dao.add_fav(user_id, delete_.id)
     return resp(RespMsg.success)
 
@@ -201,7 +203,7 @@ def add_fav(delete_: FlagId):
 @custom_jwt()
 def delete_fav(delete_: FlagId):
     """删除收藏"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     dao.delete_fav(user_id, delete_.id)
     return resp(RespMsg.success)
 
@@ -211,7 +213,7 @@ def delete_fav(delete_: FlagId):
 @custom_jwt()
 def add_comment(add_: AddComment):
     """添加标记"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     if not dao.flag_exist(user_id, add_.flag_id):
         return resp(RespMsg.flag_not_exist)
     dao.add_comment(add_.flag_id, user_id, add_.content, add_.location, None, None)
@@ -222,7 +224,7 @@ def add_comment(add_: AddComment):
 @args_parse(AddSubComment)
 @custom_jwt()
 def add_sub_comment(add_: AddSubComment):
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     # 标记是否存在
     if not dao.flag_exist(user_id, add_.flag_id):
         return resp(RespMsg.comment_not_exist)
@@ -243,7 +245,7 @@ def add_sub_comment(add_: AddSubComment):
 @custom_jwt()
 def get_comment(flag: FlagId):
     """获取评论"""
-    user_id = get_jwt_identity()
+    user_id = g.user_id
     if not dao.flag_is_open(user_id, flag.id):
         return resp(RespMsg.flag_not_exist)
     return resp([c.model_dump() for c in dao.get_comment(flag, user_id)])

@@ -24,7 +24,7 @@ class UserDao(Dao):
                "returning id")
         return self.execute(sql, username=username, password=password, nickname=nickname or ran_nickname())
 
-    def sign_in(self, username: str) -> Optional[Tuple[int, str]]:
+    def sign_in(self, username: str) -> Optional[Tuple[UUID, str]]:
         sql = 'select id, password from users where username=:username'
         return self.execute(sql, username=username)
 
@@ -41,11 +41,11 @@ class UserDao(Dao):
                'and f.fans_id=:user_id  where u.id=:other_id')
         return self.execute(sql, other_id=other_id, user_id=user_id)
 
-    def follow_add(self, fans_id: int, star_id: int):
+    def follow_add(self, fans_id: UUID, star_id: UUID):
         sql = 'insert into follow (fans_id ,star_id) values(:fans_id, :star_id)'
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
-    def follow_remove(self, fans_id: int, star_id: int):
+    def follow_remove(self, fans_id: UUID, star_id: UUID):
         sql = 'delete from follow where fans_id=:fans_id and star_id=:star_id'
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
@@ -97,11 +97,11 @@ class UserDao(Dao):
                'or not exists(select 1 from users where id=:user_id)')
         return self.execute(sql, user_id=user_id, black_id=black_id)
 
-    def wechat_exist(self, open_id: str) -> Optional[str]:
+    def wechat_exist(self, open_id: str) -> Optional[UUID]:
         sql = "select id from third_users where login_type='wechat' and open_id=:open_id"
         return self.execute(sql, open_id=open_id)
 
-    def third_part_sigh_up_third(self, login_type: str, open_id: str, access_token: str) -> int:
+    def third_part_sigh_up_third(self, login_type: str, open_id: str, access_token: str) -> UUID:
         sql = ('insert into third_users (id, login_type, open_id, access_token) values'
                f"(gen_random_uuid(), :login_type, :open_id, :access_token) returning id")
         return self.execute(sql, login_type=login_type, open_id=open_id, access_token=access_token)
@@ -134,4 +134,4 @@ class UserDao(Dao):
         return self.execute(sql, user_id=user_id)
 
 
-dao = UserDao()
+dao: UserDao = UserDao()

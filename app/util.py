@@ -3,6 +3,8 @@ import logging
 import random
 from datetime import datetime
 from functools import wraps, partial
+from uuid import UUID
+
 import requests
 from pydantic import BaseModel
 from typing import Any, Optional
@@ -21,7 +23,7 @@ from flask import request, jsonify, current_app, g
 log = logging.getLogger(__name__)
 
 
-def _refresh_user(user_id: str, ip: str):
+def _refresh_user(user_id: UUID, ip: str):
     """获取ip位置"""
     from app import app
 
@@ -54,7 +56,7 @@ def _refresh_user(user_id: str, ip: str):
         db.session.commit()
 
 
-def refresh_user(user_id: str):
+def refresh_user(user_id: UUID):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
     remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
     return partial(_refresh_user, user_id, remote_ip)
@@ -76,6 +78,15 @@ def custom_jwt(
         @wraps(fn)
         def decorator(*args, **kwargs):
             verify_jwt_in_request(optional, fresh, refresh, locations, verify_type, skip_revocation_check)
+
+            jwt_info = get_jwt()
+            user_id: UUID = UUID(jwt_info['sub'])
+            g.user_id = user_id
+            if datetime.timestamp(datetime.now()) + JwtConfig.re_jwt_timestamp > jwt_info['exp']:
+                # 添加ip的时候启动这个
+                DelayJob.job_queue.put(refresh_user(user_id))
+                g.access_token = create_access_token(identity=user_id)
+
             return current_app.ensure_sync(fn)(*args, **kwargs)
 
         return decorator
@@ -88,17 +99,10 @@ def resp(msg: Any, code: int = 0, **kwargs):
         _msg = msg[g.language]
         code = msg.get('code', code)
         return jsonify({'msg': _msg, 'code': code, **kwargs})
-    try:
-        jwt_info = get_jwt()
-        if datetime.timestamp(datetime.now()) + JwtConfig.re_jwt_timestamp > jwt_info['exp']:
-            user_id = jwt_info['sub']
-            access_token = create_access_token(identity=user_id)
-            # 添加ip的时候启动这个
-            DelayJob.job_queue.put(refresh_user(user_id))
-            return jsonify({'msg': msg, 'code': code, 'access_token': access_token, **kwargs})
-    # 如果不在jwt的装饰器请求中会报错，忽略
-    except RuntimeError:
-        ...
+
+    if g.access_token:
+        return jsonify({'msg': msg, 'code': code, 'access_token': g.access_token, **kwargs})
+
     return jsonify({'msg': msg, 'code': code, **kwargs})
 
 

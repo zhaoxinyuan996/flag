@@ -30,5 +30,3 @@ if __name__ == '__main__':
     a = A(location=[1, 2])
 
     print(A(location=[1, 2]).model_dump())
-
-

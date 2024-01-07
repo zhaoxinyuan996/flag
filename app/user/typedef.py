@@ -3,7 +3,6 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import constr, conint
-from app.base_typedef import LOCATION, URL
 from app.constants import UserClass, FlagNum, UndefinedError
 from app.util import Model
 
@@ -62,7 +61,7 @@ class UserInfo(Model):
     alive_deadline: datetime
 
     @property
-    def user_class(self) -> UserClass:
+    def user_class(self) -> int:
         if self.block_deadline > datetime.now():
             return UserClass.block
         elif self.vip_deadline > datetime.now():

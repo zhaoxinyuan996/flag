@@ -168,9 +168,9 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
         sql = 'delete from flag_comment where (id=:comment_id or root_comment_id=:comment_id) and user_id=:user_id'
         self.execute(sql, comment_id=comment_id, user_id=user_id)
 
-    def flag_is_open(self, user_id: int, flag_id: int) -> int:
+    def flag_is_open(self, user_id: UUID, flag_id: UUID) -> int:
         sql = f'select exists(select 1 from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id))'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
 
-dao = FlagDao()
+dao: FlagDao = FlagDao()
