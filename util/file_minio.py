@@ -43,12 +43,9 @@ class FileMinio:
         return ''.join(random.sample(string_pool, 10))
 
     def remove_object(self, filename: str, file_type: str):
-        """删除图片，不存在的话会报错，不管"""
+        """删除图片，不存在的也不报错，然后filename已经带前缀了，不要再加prefix"""
         filename = filename.rsplit('/', 1)[-1]
-        try:
-            self.client.remove_object(file_type, f'{prefix}{filename}')
-        except Exception as e:
-            log.error(e)
+        self.client.remove_object(file_type, f'{filename}')
 
     def upload(self, filename: str, file_type: str, b: bytes):
         io = BytesIO(b)
