@@ -44,6 +44,7 @@ class FileMinio:
 
     def remove_object(self, filename: str, file_type: str):
         """删除图片，不存在的话会报错，不管"""
+        filename = filename.rsplit('/', 1)[-1]
         try:
             self.client.remove_object(file_type, f'{prefix}{filename}')
         except Exception as e:
