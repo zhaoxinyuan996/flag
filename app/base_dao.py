@@ -6,8 +6,8 @@ from sqlalchemy import Row
 from util.database import db
 
 
-_ele = {int, float, str, datetime}
-_builtins = {dict, list, set, int, float, str, datetime, UUID}
+_ele = {int, float, str, datetime, UUID}
+_builtins = {dict, list, set, int, float, str, datetime}
 
 
 def build_model(t, keys, struct) -> Any:
