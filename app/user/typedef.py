@@ -41,6 +41,7 @@ class QueryUser(Model):
 
 
 class OtherUser(Model):
+    id: UUID
     nickname: _NICKNAME
     is_man: Optional[int]
 

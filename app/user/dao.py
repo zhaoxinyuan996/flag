@@ -35,7 +35,7 @@ class UserDao(Dao):
         return self.execute(sql, user_id=user_id)
 
     def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
-        sql = ('select nickname, is_man, signature, avatar_url, '
+        sql = ('select id, nickname, is_man, signature, avatar_url, '
                'vip_deadline, block_deadline, f.fans_id is not null is_follow '
                'from users u left join follow f on u.id=f.star_id '
                'and f.fans_id=:user_id  where u.id=:other_id')
