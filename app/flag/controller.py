@@ -7,8 +7,8 @@ from app.flag.dao import dao
 from flask import Blueprint, request, Response, g
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout
-from app.flag.typedef import AddFlag, GetFlagBy, UpdateFlag, SetFlagType, \
-    AddComment, AddSubComment, FlagId, GetFlagByMap, Flag
+from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
+    AddComment, AddSubComment, FlagId, GetFlagByMap, Flag, GetFlagByFlag, GetFlagByUser
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
@@ -124,18 +124,19 @@ def update():
     return _add_or_update(UpdateFlag, new=False)
 
 
-@bp.route('/get-flag', methods=['post'])
-@args_parse(GetFlagBy)
+@bp.route('/get-flag-by-user', methods=['post'])
+@args_parse(GetFlagByUser)
 @custom_jwt()
-def get_flag(get: GetFlagBy):
-    if not get.by:
-        return resp([f.model_dump() for f in dao.get_flag_by_user(None, get_jwt_identity(), get)])
-    if get.by == 'flag':
-        flag = dao.get_flag_by_flag(get.key, get_jwt_identity())
-        return resp(flag.model_dump(exclude=ex_user(flag)) if flag else None)
-    elif get.by == 'user':
-        return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_user(get.key, get_jwt_identity(), get)])
-    return resp(RespMsg.system_error)
+def get_flag_by_user(get: GetFlagByUser):
+    return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_user(get.id, get_jwt_identity(), get)])
+
+
+@bp.route('/get-flag-by-flag', methods=['post'])
+@args_parse(GetFlagByFlag)
+@custom_jwt()
+def get_flag_by_flag(get: GetFlagByFlag):
+    flag = dao.get_flag_by_flag(get.id, get_jwt_identity())
+    return resp(flag.model_dump(exclude=ex_user(flag)) if flag else None)
 
 
 @bp.route('/get-flag-by-map', methods=['post'])
@@ -143,6 +144,7 @@ def get_flag(get: GetFlagBy):
 @custom_jwt()
 def get_flag_by_map(get: GetFlagByMap):
     # 10公里内4倍检索，返回详细标记
+    print(get)
     if get.distance < 10000:
         get.distance *= 2
         return resp({

@@ -104,9 +104,12 @@ class GetFlagByOrder(Order):
     order: GetFlagByOrderField
 
 
-class GetFlagBy(GetFlagByOrder):
-    by: Optional[str]
-    key: Union[None, UUID, LOCATION]
+class GetFlagByUser(GetFlagByOrder):
+    id: Optional[UUID]
+
+
+class GetFlagByFlag(Model):
+    id: UUID
 
 
 class FlagType(Model):

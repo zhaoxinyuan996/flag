@@ -3,8 +3,8 @@ from uuid import UUID
 
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
-    AddFlag
+from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
+    AddFlag, GetFlagByUser
 
 
 class FlagDao(Dao):
@@ -35,7 +35,7 @@ class FlagDao(Dao):
         sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
-    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagBy) -> List[Flag]:
+    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[Flag]:
         if user_id:
             condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
         else:
