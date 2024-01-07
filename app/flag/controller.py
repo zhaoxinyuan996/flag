@@ -148,7 +148,7 @@ def get_flag_by_map(get: GetFlagByMap):
     # 10公里内4倍检索，返回详细标记
     print(get)
     if get.distance < 10000:
-        get.distance *= 2
+        get.distance *= 4
         return resp({
             'code': None,
             'detail': True,
