@@ -109,9 +109,9 @@ class UserDao(Dao):
     def third_part_sigh_up_user(self, user_id: UUID) -> int:
         sql = ('insert into users (id, nickname, signature, avatar_url, create_time, vip_deadline, block_deadline, '
                'alive_deadline) values'
-               f"(:user_id, :nickname, '说点想说的吧！', :default_avatar_url, "
+               f"(:user_id, :nickname, '说点想说的吧！', :avatar_url, "
                f"current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) returning id")
-        return self.execute(sql, user_id=user_id, nickname=ran_nickname(), default_avatar_url=default_avatar_url)
+        return self.execute(sql, user_id=user_id, nickname=ran_nickname(), avatar_url=default_avatar_url)
 
     def set_avatar_url(self, user_id: UUID, avatar_url: str) -> Optional[str]:
         sql = ('with old as (select avatar_url from users where id =:user_id) '
