@@ -102,14 +102,14 @@ class UserDao(Dao):
         return self.execute(sql, open_id=open_id)
 
     def third_part_sigh_up_third(self, login_type: str, open_id: str, access_token: str) -> UUID:
-        sql = ('insert into third_users (id, login_type, open_id, access_token) values'
+        sql = ('insert into third_users (id, login_type, open_id, access_token) values '
                f"(gen_random_uuid(), :login_type, :open_id, :access_token) returning id")
         return self.execute(sql, login_type=login_type, open_id=open_id, access_token=access_token)
 
     def third_part_sigh_up_user(self, user_id: UUID) -> int:
         sql = ('insert into users (id, nickname, signature, avatar_url, create_time, vip_deadline, block_deadline, '
                'alive_deadline) values'
-               f"(:user_id, :nickname, '说点想说的吧！', {default_avatar_url}, "
+               f"(:user_id, :nickname, '说点想说的吧！', '{default_avatar_url}', "
                f"current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) returning id")
         return self.execute(sql, user_id=user_id, nickname=ran_nickname())
 

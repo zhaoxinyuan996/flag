@@ -16,5 +16,5 @@ class DelayJob:
             try:
                 func()
             except Exception as e:
-                log.error('delay job error: {func}')
+                log.error(f'delay job error: {func}')
                 log.exception(e)
