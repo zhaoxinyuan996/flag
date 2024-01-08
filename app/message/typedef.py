@@ -12,6 +12,27 @@ class Message(Model):
     create_time: Optional[datetime]
 
 
+class Notice(Model):
+    id: Optional[int]
+    version: Optional[str]
+    user_class: Optional[int]
+    title: Optional[str]
+    content: Optional[str]
+    create_time: Optional[datetime]
+
+
+class AskNoticeReq(Model):
+    id: int
+
+
+class AskNotice(Model):
+    id: int
+    version: str
+    title: str
+    content: str
+    create_time: datetime
+
+
 class SendMessage(Message):
     receive_id: int
     content: str

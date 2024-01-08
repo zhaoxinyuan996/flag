@@ -1,5 +1,6 @@
 import logging
 import os
+import pickle
 import re
 from uuid import UUID
 
@@ -7,13 +8,13 @@ import requests
 from app.user.dao import dao
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse, refresh_user
-from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError
+from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
 from util.config import config
-from util.database import db
+from util.database import db, redis_cli
 from util.file_minio import file_minio
 
 module_name = os.path.basename(os.path.dirname(__file__))
@@ -28,11 +29,17 @@ log = logging.getLogger(__name__)
 
 def get_user_info() -> UserInfo:
     # 加一层g？
-    # 再加一层redis
-    info: UserInfo = dao.get_info(get_jwt_identity())
-    if not info:
-        raise AppError(RespMsg.user_not_exist)
-    return info
+    # 加一层redis
+    user_id = g.user_id
+    key = f'user-info-{user_id}'
+    if value := redis_cli.get(key):
+        return pickle.loads(value)
+    else:
+        info: UserInfo = dao.get_info(user_id)
+        if not info:
+            raise AppError(RespMsg.user_not_exist)
+        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.user_info)
+        return info
 
 
 def exists_black_list(user_id: UUID, black_id: UUID) -> bool:

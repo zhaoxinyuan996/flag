@@ -2,8 +2,22 @@ from enum import EnumMeta, Enum
 from typing import Union
 
 
+class FlagApp:
+    version: tuple = (1, 0, 0)
+
+    @property
+    def text_version(self):
+        return '.'.join(self.version)
+
+
+flag_app = FlagApp()
+
+
 class CacheTimeout:
     """缓存超时时间"""
+    # 用户信息
+    user_info = 7200
+    # 区域标记数
     region_flag = 1800
 
 

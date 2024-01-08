@@ -167,3 +167,15 @@ unique(user_id, flag_id)
 
 CREATE INDEX fav_user_id_index on fav (user_id);
 '''
+
+# 系统消息
+d10 = '''
+create table notice (
+id serial primary key,
+version text not null,
+user_class int not null,
+title text not null,
+content text not null,
+create_time timestamp
+)
+'''

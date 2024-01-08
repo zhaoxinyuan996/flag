@@ -1,9 +1,14 @@
 from typing import List
 from app.base_dao import Dao
-from app.message.typedef import ReceiveMessageResp
+from app.message.typedef import ReceiveMessageResp, AskNotice
 
 
 class MessageDao(Dao):
+    def ask_notice(self, notice_id: int, user_class: int) -> List[AskNotice]:
+        sql = ('select id, version, title, content, create_time from notice '
+               'where id>:id and user_class>=:user_class order by id')
+        return self.execute(sql, id=notice_id, user_class=user_class)
+
     def send_message(self, send_id: int, receive_id: int, type_: int, content: str):
         sql = ('insert into message (type, send_id, receive_id, content, create_time) '
                'values(:type_, :send_id, :receive_id, :content, current_timestamp)')
