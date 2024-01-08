@@ -169,7 +169,7 @@ def follow_add(user: UserId):
     if not dao.exist(user.id):
         return resp(RespMsg.user_not_exist)
     user_id = g.user_id
-    if user_id == str(user.id):
+    if user_id == user.id:
         return resp(RespMsg.cant_follow_self, -1)
     dao.follow_add(user_id, user.id)
     return resp(RespMsg.success)
