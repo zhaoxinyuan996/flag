@@ -151,8 +151,8 @@ def upload_avatar():
     # 设置数据库，再上传
     dao.set_avatar_url(user_id, new_url)
     file_minio.upload(new_filename, FileType.head_pic, b)
-    print('old:', old_url)
-    print('new:', new_url)
+    log.warning('old:' + old_url)
+    log.warning('new:' + new_url)
     return resp(RespMsg.success, avatar_url=new_url)
 
 
