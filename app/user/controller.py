@@ -7,7 +7,7 @@ from uuid import UUID
 import requests
 from app.user.dao import dao
 from flask import Blueprint, request, g
-from app.util import resp, custom_jwt, args_parse, refresh_user
+from app.util import resp, custom_jwt, args_parse, refresh_user, dcs_lock
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -129,6 +129,7 @@ def user_info(query: QueryUser):
         return resp(res.model_dump())
 
 
+@dcs_lock('upload-avatar')
 @bp.route('/upload-avatar', methods=['post'])
 @custom_jwt()
 def upload_avatar():
@@ -144,11 +145,12 @@ def upload_avatar():
     # 生成文件名
     filename = f'{user_id}.{file_minio.random_str()}.{suffix}'
     url = file_minio.get_file_url(filename, FileType.head_pic)
-
-    old_filename = dao.set_avatar_url(user_id, url)
-
-    file_minio.upload(filename, FileType.head_pic, b)
+    # 获取旧的图片，删除旧图片
+    old_filename = dao.get_avatar_url(user_id)
     file_minio.remove_object(old_filename, FileType.head_pic)
+    # 设置数据库，再上传
+    dao.set_avatar_url(user_id, url)
+    file_minio.upload(filename, FileType.head_pic, b)
 
     return resp(RespMsg.success, avatar_url=url)
 

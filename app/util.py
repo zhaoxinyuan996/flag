@@ -7,15 +7,15 @@ from uuid import UUID
 
 import requests
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request, get_jwt, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic_core import PydanticUndefined
 from common.job import DelayJob
-from util.database import db
+from util.database import db, redis_cli
 from .base_dao import build_model, base_dao
-from .constants import Message, JwtConfig
+from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
 from flask import request, jsonify, current_app, g
 
@@ -60,6 +60,24 @@ def refresh_user(user_id: UUID):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
     remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
     return partial(_refresh_user, user_id, remote_ip)
+
+
+def dcs_lock(key: str, ex=5000):
+    """分布式锁"""
+    def f1(func: Callable):
+        @wraps(func)
+        def f2(*args, **kwargs):
+            k = f'{key}-{g.user_id}'
+            # 锁被占用
+            if redis_cli.get(k):
+                raise DCSLockError('操作过快')
+            try:
+                redis_cli.set(k, ex=ex)
+                return func(*args, **kwargs)
+            finally:
+                redis_cli.delete(k)
+        return f2
+    return f1
 
 
 def custom_jwt(

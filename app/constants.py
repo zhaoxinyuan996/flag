@@ -192,5 +192,9 @@ class AppError(Exception):
         self.msg = msg
 
 
+class DCSLockError(AppError):
+    """分布式锁在占用"""
+
+
 class UndefinedError(AppError):
     ...

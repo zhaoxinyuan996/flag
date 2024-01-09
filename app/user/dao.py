@@ -113,10 +113,12 @@ class UserDao(Dao):
                f"current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) returning id")
         return self.execute(sql, user_id=user_id, nickname=ran_nickname(), avatar_url=default_avatar_url)
 
+    def get_avatar_url(self, user_id: UUID) -> Optional[str]:
+        sql = 'select avatar_url from users where id=:user_id'
+        return self.execute(sql, user_id=user_id)
+
     def set_avatar_url(self, user_id: UUID, avatar_url: str) -> Optional[str]:
-        sql = ('with old as (select avatar_url from users where id =:user_id) '
-               'update users set avatar_url=:avatar_url where id=:user_id '
-               'returning (select avatar_url from old)')
+        sql = 'update users set avatar_url=:avatar_url where id=:user_id returning avatar_url'
         return self.execute(sql, user_id=user_id, avatar_url=avatar_url)
 
     def set_userinfo(self, user_id: UUID, info: dict):

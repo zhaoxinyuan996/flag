@@ -49,16 +49,7 @@ class FileMinio:
 
     def upload(self, filename: str, file_type: str, b: bytes):
         io = BytesIO(b)
-
-        def upload_origin():
-            """如果是会员的话再上传一份原图"""
-            self.client.put_object(file_type, f'{prefix}{filename}', io, len(b))
-
-        try:
-            upload_origin()
-        except S3Error:
-            self.create_bucket(file_type)
-            upload_origin()
+        self.client.put_object(file_type, f'{prefix}{filename}', io, len(b))
 
     def get_file_url_limited_time(self, bucket_name: str, filename: str, days=7) -> str:
         return self.client.presigned_get_object(
