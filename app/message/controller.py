@@ -14,7 +14,7 @@ bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 @args_parse(AskNoticeReq)
 @custom_jwt()
 def ask_notice(ask: AskNoticeReq):
-    return [n.model_dump() for n in dao.ask_notice(ask.id, get_user_info().user_class)]
+    return resp([n.model_dump() for n in dao.ask_notice(ask.id, get_user_info().user_class)])
 
 
 # @bp.route('/send-message', methods=['post'])
