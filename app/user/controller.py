@@ -143,16 +143,16 @@ def upload_avatar():
         return resp(RespMsg.too_large, -1)
 
     # 生成文件名
-    filename = f'{user_id}.{file_minio.random_str()}.{suffix}'
-    url = file_minio.get_file_url(filename, FileType.head_pic)
+    new_filename = f'{user_id}.{file_minio.random_str()}.{suffix}'
+    new_url = file_minio.get_file_url(new_filename, FileType.head_pic)
     # 获取旧的图片，删除旧图片
-    old_filename = dao.get_avatar_url(user_id)
-    file_minio.remove_object(old_filename, FileType.head_pic)
+    old_url = dao.get_avatar_url(user_id)
+    file_minio.remove_object(old_url, FileType.head_pic)
     # 设置数据库，再上传
-    dao.set_avatar_url(user_id, url)
-    file_minio.upload(filename, FileType.head_pic, b)
+    dao.set_avatar_url(user_id, new_url)
+    file_minio.upload(new_filename, FileType.head_pic, b)
 
-    return resp(RespMsg.success, avatar_url=url)
+    return resp(RespMsg.success, avatar_url=new_url)
 
 
 @bp.route('/set-userinfo', methods=['post'])
