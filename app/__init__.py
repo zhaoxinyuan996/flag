@@ -6,12 +6,15 @@ from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
 from sqlalchemy import exc
+from util.log import setup_logger
 from . import test, user, flag, message
 from app.constants import RespMsg, AppError, JwtConfig
 from app.util import resp, JSONProvider
 from util.config import redis_uri, db_uri, dev
 from util.database import db, redis_cli
 
+
+setup_logger()
 log = logging.getLogger(__name__)
 
 
