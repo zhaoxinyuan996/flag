@@ -7,8 +7,7 @@ from app.base_dao import Dao
 from app.user.typedef import User, UserInfo, OtherUser
 
 vip_deadline = 'infinity'
-default_avatar_url = ('https://mmbiz.qpic.cn/mmbiz/'
-                      'icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0')
+default_avatar_filename = 'default.png'
 
 
 def ran_nickname():
@@ -29,13 +28,13 @@ class UserDao(Dao):
         return self.execute(sql, username=username)
 
     def user_info(self, user_id: UUID) -> Optional[User]:
-        sql = ('select id, username, nickname, avatar_url, signature, '
+        sql = ('select id, username, nickname, avatar_name, signature, '
                'vip_deadline, block_deadline, belong, local '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
-        sql = ('select id, nickname, is_man, signature, avatar_url, '
+        sql = ('select id, nickname, is_man, signature, avatar_name, '
                'vip_deadline, block_deadline, f.fans_id is not null is_follow '
                'from users u left join follow f on u.id=f.star_id '
                'and f.fans_id=:user_id  where u.id=:other_id')
@@ -50,13 +49,13 @@ class UserDao(Dao):
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
     def follow_star(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_url, u.vip_deadline, u.block_deadline '
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline '
                'from follow f inner join users u '
                'on f.star_id=u.id where f.fans_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def follow_fans(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_url, u.vip_deadline, u.block_deadline '
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline '
                'from follow f inner join users u '
                'on f.fans_id=u.id where f.star_id=:user_id')
         return self.execute(sql, user_id=user_id)
@@ -107,19 +106,19 @@ class UserDao(Dao):
         return self.execute(sql, login_type=login_type, open_id=open_id, access_token=access_token)
 
     def third_part_sigh_up_user(self, user_id: UUID) -> int:
-        sql = ('insert into users (id, nickname, signature, avatar_url, create_time, vip_deadline, block_deadline, '
-               'alive_deadline) values'
-               f"(:user_id, :nickname, '说点想说的吧！', :avatar_url, "
+        sql = ('insert into users (id, nickname, signature, avatar_name, create_time, vip_deadline, '
+               'block_deadline, alive_deadline) values'
+               f"(:user_id, :nickname, '说点想说的吧！', :avatar_name, "
                f"current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) returning id")
-        return self.execute(sql, user_id=user_id, nickname=ran_nickname(), avatar_url=default_avatar_url)
+        return self.execute(sql, user_id=user_id, nickname=ran_nickname(), avatar_name=default_avatar_filename)
 
-    def get_avatar_url(self, user_id: UUID) -> Optional[str]:
-        sql = 'select avatar_url from users where id=:user_id'
+    def get_avatar_filename(self, user_id: UUID) -> Optional[str]:
+        sql = 'select avatar_name from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
-    def set_avatar_url(self, user_id: UUID, avatar_url: str) -> Optional[str]:
-        sql = 'update users set avatar_url=:avatar_url where id=:user_id returning avatar_url'
-        return self.execute(sql, user_id=user_id, avatar_url=avatar_url)
+    def set_avatar_filename(self, user_id: UUID, avatar_name: str) -> Optional[str]:
+        sql = 'update users set avatar_name=:avatar_name where id=:user_id returning avatar_name'
+        return self.execute(sql, user_id=user_id, avatar_name=avatar_name)
 
     def set_userinfo(self, user_id: UUID, info: dict):
         settings = ','.join(f"{k}=:{k}" for k, v in info.items() if v is not None)

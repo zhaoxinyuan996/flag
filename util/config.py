@@ -15,6 +15,7 @@ db_uri = 'postgresql://{}:{}@{}:{}/{}'.format(
     )
 dev = config['env'] == 'dev'
 
+up_config = config['up_oss'][config['env']]
 
 if __name__ == '__main__':
     print(config)

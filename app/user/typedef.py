@@ -24,8 +24,8 @@ class User(Model):
     wechat_id: Optional[str]
 
     signature: Optional[_SIGNATURE]
-    avatar_url: Optional[str]
-
+    avatar_name: Optional[str]
+    bg_avatar_name: Optional[str]
     create_time: Optional[datetime]
     vip_deadline: Optional[datetime]
     block_deadline: Optional[datetime]
@@ -45,7 +45,7 @@ class OtherUser(Model):
     is_man: Optional[int]
 
     signature: _SIGNATURE
-    avatar_url: str
+    avatar_name: str
 
     vip_deadline: datetime
     block_deadline: datetime

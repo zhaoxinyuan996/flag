@@ -14,8 +14,8 @@ phone int,
 is_man bool,
 
 signature text,
-avatar_url text,
-bg_avatar_url text,
+avatar_name text,
+bg_avatar_name text,
 flag_num int not null default 0,
 
 create_time timestamp not null,

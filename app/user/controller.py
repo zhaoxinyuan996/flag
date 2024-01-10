@@ -15,7 +15,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
 from util.config import config
 from util.database import db, redis_cli
-from util.file_minio import file_minio
+from util.up_oss import up_oss
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
@@ -143,17 +143,16 @@ def upload_avatar():
         return resp(RespMsg.too_large, -1)
 
     # 生成文件名
-    new_filename = f'{user_id}.{file_minio.random_str()}.{suffix}'
-    new_url = file_minio.get_file_url(new_filename, FileType.head_pic)
+    new_filename = f'{up_oss.random_str()}.{suffix}'
     # 获取旧的图片，删除旧图片
-    old_url = dao.get_avatar_url(user_id)
-    file_minio.remove_object(old_url, FileType.head_pic)
+    old_filename = dao.get_avatar_filename(user_id)
+    up_oss.delete(FileType.head_pic, old_filename)
     # 设置数据库，再上传
-    dao.set_avatar_url(user_id, new_url)
-    file_minio.upload(new_filename, FileType.head_pic, b)
-    log.warning('old:' + old_url)
-    log.warning('new:' + new_url)
-    return resp(RespMsg.success, avatar_url=new_url)
+    dao.set_avatar_filename(user_id, new_filename)
+    up_oss.upload(FileType.head_pic, new_filename, b)
+    log.warning('old:' + old_filename)
+    log.warning('new:' + new_filename)
+    return resp(RespMsg.success, avatar_name=new_filename)
 
 
 @bp.route('/set-userinfo', methods=['post'])
@@ -200,7 +199,7 @@ def follow_star():
     """我的关注"""
     stars = dao.follow_star(get_jwt_identity())
     return resp([i.model_dump(include={
-        'id', 'nickname', 'signature', 'avatar_url', 'vip_deadline', 'block_deadline'}) for i in stars])
+        'id', 'nickname', 'signature', 'avatar_name', 'vip_deadline', 'block_deadline'}) for i in stars])
 
 
 @bp.route('/follow-fans', methods=['post'])
@@ -209,7 +208,7 @@ def follow_fans():
     """我的粉丝"""
     fans = dao.follow_fans(get_jwt_identity())
     return resp([i.model_dump(include={
-        'id', 'nickname', 'signature', 'avatar_url', 'vip_deadline', 'block_deadline'}) for i in fans])
+        'id', 'nickname', 'signature', 'avatar_name', 'vip_deadline', 'block_deadline'}) for i in fans])
 
 
 @bp.route('/sign-out', methods=['post'])

@@ -57,7 +57,6 @@ class Comment(Model):
 
 
 class AddFlag(Model):
-    id: Optional[UUID]
     user_id: UUID
     name: constr(min_length=1, max_length=20)
     content: _FLAG_CONTENT
@@ -84,14 +83,18 @@ class AddFlag(Model):
 
 
 class UpdateFlag(Model):
-    id: Optional[UUID]
-    user_id: UUID
+    id: UUID
     name: constr(min_length=1, max_length=20)
     content: _FLAG_CONTENT
     type: _TYPE
     status: _STATUS
     pictures: List[str]
     ico_name: constr(max_length=20)
+
+
+class FlagPictures(Model):
+    id: UUID
+    pictures: List[str]
 
 
 class GetFlagByOrderField(OrderField):
@@ -135,12 +138,12 @@ class OpenFlag(Flag):
     # 匿名或者删除
     user_id: Optional[UUID]
     nickname: Optional[str]
-    avatar_url: Optional[str]
+    avatar_name: Optional[str]
 
     def __init__(self, **kwargs):
         # 匿名标记
         if kwargs['status'] & 0b10 == 0b10:
-            kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_url'] = None
+            kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_name'] = None
         super().__init__(**kwargs)
 
 

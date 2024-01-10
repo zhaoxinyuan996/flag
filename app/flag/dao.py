@@ -4,7 +4,7 @@ from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
-    AddFlag, GetFlagByUser
+    AddFlag, GetFlagByUser, FlagPictures
 
 
 class FlagDao(Dao):
@@ -14,21 +14,25 @@ class FlagDao(Dao):
     not_hide = 'status&1=0 and (dead_line is null or dead_line > now())'
     anonymous = 'status&0b10=0b10'
 
-    def add(self, flag: AddFlag, user_class: int) -> str:
+    def upload_pictures(self, flag_id: UUID, pictures: List[str]):
+        sql = 'update flag set pictures=:pictures where id=:flag_id'
+        self.execute(sql, flag_id=flag_id, pictures=pictures)
+
+    def add(self, flag: AddFlag, user_class: int) -> Optional[FlagPictures]:
         sql = ('insert into flag '
                '(id, user_id, location, name, content, user_class, type, status, create_time, update_time, pictures,'
                'ico_name, dead_line) '
                'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :status, '
-               'current_timestamp, current_timestamp, array[]::text[], :ico_name, :dead_line) returning id')
+               'current_timestamp, current_timestamp, array[]::text[], :ico_name, :dead_line) returning id, pictures')
         return self.execute(sql, user_id=flag.user_id, content=flag.content, status=flag.status, name=flag.name,
                             user_class=user_class, location=point(flag.location), type=flag.type,
                             ico_name=flag.ico_name, dead_line=flag.dead_line)
 
-    def update(self, flag: UpdateFlag) -> Optional[int]:
+    def update(self, user_id: UUID, flag: UpdateFlag) -> Optional[FlagPictures]:
         sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
                'ico_name=:ico_name, pictures=:pictures '
-               'where id=:id and user_id=:user_id returning id')
-        return self.execute(sql, id=flag.id, user_id=flag.user_id, name=flag.name, content=flag.content, type=flag.type,
+               'where id=:id and user_id=:user_id returning id, pictures')
+        return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
                             status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
@@ -71,7 +75,7 @@ select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
     '''
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
-        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_url from flag f inner join users u '
+        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name from flag f inner join users u '
                f'on f.user_id=u.id where '
                f'(user_id=:user_id or {self.not_hide}) and type=:type '
                "and ST_Distance(ST_GeographyFromText(:location), "

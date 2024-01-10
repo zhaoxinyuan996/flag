@@ -6,7 +6,7 @@ from sqlalchemy import Row
 from util.database import db
 
 
-_ele = {int, float, str, datetime, UUID}
+_ele = {int, float, str, datetime, UUID, Any}
 _builtins = {dict, list, set, int, float, str, datetime}
 
 
