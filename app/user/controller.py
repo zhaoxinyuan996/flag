@@ -146,7 +146,8 @@ def upload_avatar():
     new_filename = f'{up_oss.random_str()}.{suffix}'
     # 获取旧的图片，删除旧图片
     old_filename = dao.get_avatar_filename(user_id)
-    up_oss.delete(FileType.head_pic, old_filename)
+    if old_filename != 'default.png':
+        up_oss.delete(FileType.head_pic, old_filename)
     # 设置数据库，再上传
     dao.set_avatar_filename(user_id, new_filename)
     up_oss.upload(FileType.head_pic, new_filename, b)

@@ -47,33 +47,6 @@ class FlagDao(Dao):
         sql = f'select {self.fields} from flag f where {condition} order by {get.order_by}'
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
-    '''
-    with s as(
--- 市本级
-select a.code from adcode a inner join fences f on a.adcode=f.adcode 
-where a."rank" =2 and ST_Contains(f.fence,ST_GeomFromText('point(120.21200999999996 30.20840000000001)', 4326))
-),
-s0 as(
--- 根据所在市查找下属区县
-select a.adcode, a.name, a.rank, a.center from s inner join adcode a on s.code=a.parent 
-),
-s1 as (
--- 下属曲线的电子围栏
-select s0.name, f.fence from s0 inner join fences f on s0.adcode=f.adcode 
-where s0.rank=3 and s0.center is not null
-),
-s2 as (
--- 电子围栏和标记关联
-select id, user_id, 
-location, 
-name, content, user_class, type, create_time, update_time, pictures, is_open, ico_name  
-from flag where 
-ST_Distance(ST_GeographyFromText('point (120.21200999999996 30.20840000000001  )'), 
-ST_GeographyFromText(ST_AsText(location)))<100000
-)
-select s2.*, s1.name from s2 inner join s1 on ST_Contains(s1.fence,s2.location);
-    '''
-
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
         sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name from flag f inner join users u '
                f'on f.user_id=u.id where '
