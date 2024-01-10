@@ -178,6 +178,7 @@ def add(flag: AddFlag):
     with db.auto_commit():
         user_dao.add_flag(user_id)
         flag_id = dao.add(flag, user_class)
+
     return resp(RespMsg.success, flag_id=flag_id)
 
 
@@ -192,10 +193,19 @@ def update(flag: UpdateFlag):
     return resp(RespMsg.success)
 
 
-@bp.route('/upload_pictures', methods=['post'])
+@bp.route('/upload-pictures', methods=['post'])
 @custom_jwt()
 def upload_pictures():
-    pictures = get_request_list(request.form)['file']
+    flag_id = UUID(request.form['id'])
+    pictures = get_request_list(request.files['file'])
+
+    # 先构建名字
+    names = [f"{flag_id}{up_oss.random_str()}-{p.filename.rsplit('.', 1)[1]}" for p in pictures]
+    # 再存表
+    dao.upload_pictures(flag_id, names)
+    # 最后上传
+    for i in range(len(pictures)):
+        up_oss.upload(FileType.flag_pic, names[i], pictures[i].stream.read())
 
 
 @bp.route('/get-flag-by-user', methods=['post'])

@@ -151,8 +151,6 @@ def upload_avatar():
     # 设置数据库，再上传
     dao.set_avatar_filename(user_id, new_filename)
     up_oss.upload(FileType.head_pic, new_filename, b)
-    log.warning('old:' + old_filename)
-    log.warning('new:' + new_filename)
     return resp(RespMsg.success, avatar_name=new_filename)
 
 

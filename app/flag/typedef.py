@@ -67,6 +67,7 @@ class AddFlag(Model):
     pictures: List[str]
     ico_name: constr(max_length=20)
     temp: bool
+    random_str: constr(min_length=8, max_length=8)
 
     @property
     def dead_line(self):
@@ -90,6 +91,7 @@ class UpdateFlag(Model):
     status: _STATUS
     pictures: List[str]
     ico_name: constr(max_length=20)
+    random_str: constr(min_length=8, max_length=8)
 
 
 class FlagPictures(Model):
