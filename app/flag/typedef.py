@@ -57,7 +57,6 @@ class Comment(Model):
 
 
 class AddFlag(Model):
-    user_id: UUID
     name: constr(min_length=1, max_length=20)
     content: _FLAG_CONTENT
 
