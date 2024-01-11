@@ -197,7 +197,9 @@ def update(flag: UpdateFlag):
 @custom_jwt()
 def upload_pictures():
     flag_id = UUID(request.form['id'])
-    pictures = get_request_list(request.files['file'])
+    pictures = get_request_list(request.files)['file']
+    if not isinstance(pictures, list):
+        pictures = [pictures]
 
     # 先构建名字
     names = [f"{flag_id}{up_oss.random_str()}-{p.filename.rsplit('.', 1)[1]}" for p in pictures]
