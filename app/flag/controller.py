@@ -74,94 +74,6 @@ def _build(content: str) -> List[Tuple[str, bytes]]:
     return datas
 
 
-def _add_or_update(model: Union[type(AddFlag), type(UpdateFlag)], new: bool):
-    """新增和修改"""
-    user_id = g.user_id
-    _flag = get_request_list(request.form)
-    _flag['user_id'] = user_id
-    _flag['pictures'] = []
-    if isinstance(_flag.get('location'), str):
-        _flag['location'] = json.loads(_flag['location'])
-    flag = model(**_flag)
-
-    # 获取用户级别
-    user_class = get_user_info().user_class
-    # 构建图片数据
-    datas = _build(flag.content)
-    if isinstance(datas, Response):
-        return datas
-    # 新建和修改走同一个函数
-    with db.auto_commit():
-        # 新标记要新建一个标记
-        if new:
-            g.error_resp = RespMsg.flag_cant_cover_others_flag
-            user_dao.add_flag(user_id)
-            flag.id = dao.add(flag, user_class)
-
-        for i, data in enumerate(datas):
-            suffix, b = data
-            flag.pictures.append(up_oss.get_url(f'{flag.id}.{suffix}', FileType.flag_pic))
-            up_oss.upload(FileType.flag_pic, f'{flag.id}-{i}.{suffix}', b)
-
-
-        flag_id = dao.update(flag)
-        if not flag_id:
-            return resp(RespMsg.flag_not_exist, -1)
-    return resp(RespMsg.success, flag_id=flag.id)
-
-"""
-上传图片流程
-新建
-添加标记    /add
-上传图片    /upload-pictures
-更新至数据库
-上传到oss
-修改
-修改标记    /update
-客户端域名区分，把差量图片记录
-上传图片    /upload-pictures
-查表把所有oss图片找到
-删除oss的数据
-更新表
-上传新的oss数据
-"""
-
-# @bp.route('/upload-pictures-done', methods=['post'])
-# @args_parse(FlagId)
-# @custom_jwt()
-# def upload_pictures_done(flag: FlagId):
-#
-#     if pictures_data := redis_cli.get():
-#         # data是k-v
-#         for data in pictures_data:
-#             suffix = data['name'].rsplit('.', 1)[1]
-#             new_filename = f'{flag.id}.{file_minio.random_str()}.{suffix}'
-#             new_url = file_minio.get_file_url(new_filename, FileType.head_pic)
-#     dao.upload_pictures(flag.id, )
-#
-#
-#     # 生成文件名
-#
-#
-#     # 获取旧的图片，删除旧图片
-#     old_url = dao.get_avatar_url(user_id)
-#     file_minio.remove_object(old_url, FileType.head_pic)
-#     # 设置数据库，再上传
-#     dao.set_avatar_url(user_id, new_url)
-#     file_minio.upload(new_filename, FileType.head_pic, b)
-#
-#     return resp(RespMsg.success)
-
-
-# def inspect(req: Union[AddFlag, UpdateFlag]):
-#     """检查，判断用户级别和可用量"""
-#     info: UserInfo = get_user_info()
-#     if info.user_class == UserClass.normal and len(req.pictures) > 1:
-#         return resp(RespMsg.too_large)
-#     elif info.user_class == UserClass.vip and len(req.pictures) > 9:
-#         return resp(RespMsg.too_large)
-
-
 @bp.route('/add', methods=['post'])
 @args_parse(AddFlag)
 @custom_jwt()
@@ -202,7 +114,7 @@ def upload_pictures():
         pictures = [pictures]
 
     # 先构建名字
-    names = [f"{flag_id}{up_oss.random_str()}-{p.filename.rsplit('.', 1)[1]}" for p in pictures]
+    names = [f"{flag_id}-{up_oss.random_str()}.{p.filename.rsplit('.', 1)[1]}" for p in pictures]
     # 再存表
     dao.upload_pictures(flag_id, names)
     # 最后上传
