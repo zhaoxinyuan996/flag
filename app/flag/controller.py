@@ -177,9 +177,9 @@ def add(flag: AddFlag):
     g.error_resp = RespMsg.flag_cant_cover_others_flag
     with db.auto_commit():
         user_dao.add_flag(user_id)
-        flag_id = dao.add(user_id, flag, user_class)
+        flag_p = dao.add(user_id, flag, user_class)
 
-    return resp(RespMsg.success, flag_id=flag_id)
+    return resp(RespMsg.success, flag_id=flag_p.id)
 
 
 @bp.route('/update', methods=['post'])
