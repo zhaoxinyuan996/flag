@@ -143,7 +143,7 @@ def upload_avatar():
         return resp(RespMsg.too_large, -1)
 
     # 生成文件名
-    new_filename = f'{up_oss.random_str()}.{suffix}'
+    new_filename = f'{user_id}-{up_oss.random_str()}.{suffix}'
     # 获取旧的图片，删除旧图片
     old_filename = dao.get_avatar_filename(user_id)
     if old_filename != 'default.png':
