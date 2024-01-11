@@ -209,6 +209,8 @@ def upload_pictures():
     for i in range(len(pictures)):
         up_oss.upload(FileType.flag_pic, names[i], pictures[i].stream.read())
 
+    return resp(RespMsg.success)
+
 
 @bp.route('/get-flag-by-user', methods=['post'])
 @args_parse(GetFlagByUser)
