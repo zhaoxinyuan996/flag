@@ -1,10 +1,11 @@
+import logging
 import random
 import string
 from upyun import upyun, UpYunServiceException
-
 from util.config import up_config
-
 string_pool = string.ascii_letters + string.digits
+
+log = logging.getLogger(__name__)
 
 
 class UpOss:
@@ -31,6 +32,7 @@ class UpOss:
         try:
             self.client.delete(f'/{bucket}/{filename}')
         except UpYunServiceException as e:
+            log.warning(f'up delete: {e}')
             # 404忽略
             if e.status != 404:
                 raise e

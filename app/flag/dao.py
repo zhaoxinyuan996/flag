@@ -1,6 +1,5 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 from uuid import UUID
-
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
@@ -14,9 +13,13 @@ class FlagDao(Dao):
     not_hide = 'status&1=0 and (dead_line is null or dead_line > now())'
     anonymous = 'status&0b10=0b10'
 
-    def upload_pictures(self, flag_id: UUID, pictures: List[str]):
-        sql = 'update flag set pictures=:pictures where id=:flag_id'
-        self.execute(sql, flag_id=flag_id, pictures=pictures)
+    def upload_pictures(self, user_id: UUID, flag_id: UUID, pictures: List[str]):
+        sql = 'update flag set pictures=:pictures where id=:flag_id and user_id=:user_id'
+        self.execute(sql, user_id=user_id, flag_id=flag_id, pictures=pictures)
+
+    def get_pictures(self, user_id: UUID, flag_id: UUID) -> Any:
+        sql = 'select pictures from flag where id=:flag_id and user_id=:user_id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def add(self, user_id: UUID, flag: AddFlag, user_class: int) -> Optional[FlagPictures]:
         sql = ('insert into flag '

@@ -1,12 +1,12 @@
 import json
 import os
 import logging
-from typing import List, Tuple, Union
+from typing import List, Tuple
 from uuid import UUID
 
 from app.user.dao import dao as user_dao
 from app.flag.dao import dao
-from flask import Blueprint, request, Response, g
+from flask import Blueprint, request, g
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
@@ -108,16 +108,21 @@ def update(flag: UpdateFlag):
 @bp.route('/upload-pictures', methods=['post'])
 @custom_jwt()
 def upload_pictures():
+    user_id = g.user_id
     flag_id = UUID(request.form['id'])
     pictures = get_request_list(request.files)['file']
     if not isinstance(pictures, list):
         pictures = [pictures]
 
-    # 先构建名字
+    # 删除旧的图片
+    old_names = dao.get_pictures(user_id, flag_id)
+    for name in old_names:
+        up_oss.delete(FileType.flag_pic, name)
+    # 构建名字
     names = [f"{flag_id}-{up_oss.random_str()}.{p.filename.rsplit('.', 1)[1]}" for p in pictures]
-    # 再存表
-    dao.upload_pictures(flag_id, names)
-    # 最后上传
+    # 存表
+    dao.upload_pictures(user_id, flag_id, names)
+    # 上传
     for i in range(len(pictures)):
         up_oss.upload(FileType.flag_pic, names[i], pictures[i].stream.read())
 
