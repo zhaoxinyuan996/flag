@@ -17,7 +17,7 @@ class FlagDao(Dao):
         sql = 'update flag set pictures=:pictures where id=:flag_id and user_id=:user_id'
         self.execute(sql, user_id=user_id, flag_id=flag_id, pictures=pictures)
 
-    def get_pictures(self, user_id: UUID, flag_id: UUID) -> Any:
+    def get_pictures(self, user_id: UUID, flag_id: UUID) -> Optional[Any]:
         sql = 'select pictures from flag where id=:flag_id and user_id=:user_id'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
@@ -85,8 +85,8 @@ class FlagDao(Dao):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
         self.execute(sql, user_id=user_id, flag_id=flag_id, flag_type=flag_type)
 
-    def delete(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
-        sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id'
+    def delete(self, user_id: UUID, flag_id: UUID) -> Optional[FlagPictures]:
+        sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id, pictures'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def get_fav(self, user_id: UUID) -> List[FavFlag]:

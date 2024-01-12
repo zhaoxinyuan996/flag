@@ -116,6 +116,8 @@ def upload_pictures():
 
     # 删除旧的图片
     old_names = dao.get_pictures(user_id, flag_id)
+    if old_names is None:
+        return resp(RespMsg.flag_not_exist)
     for name in old_names:
         up_oss.delete(FileType.flag_pic, name)
     # 构建名字
@@ -140,8 +142,9 @@ def get_flag_by_user(get: GetFlagByUser):
 @args_parse(GetFlagByFlag)
 @custom_jwt()
 def get_flag_by_flag(get: GetFlagByFlag):
-    flag = dao.get_flag_by_flag(get.id, get_jwt_identity())
-    return resp(flag.model_dump(exclude=ex_user(flag)) if flag else None)
+    if flag := dao.get_flag_by_flag(get.id, get_jwt_identity()):
+        return resp(flag.model_dump(exclude=ex_user(flag)))
+    return resp(RespMsg.flag_not_exist)
 
 
 @bp.route('/get-flag-by-map', methods=['post'])
@@ -178,7 +181,10 @@ def delete(delete_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         # 先删除，如果存在则更新用户表
-        dao.delete(user_id, delete_.id) is None or user_dao.delete_flag(user_id)
+        if flag_pictures := dao.delete(user_id, delete_.id):
+            for p in flag_pictures.pictures:
+                up_oss.delete(FileType.flag_pic, p)
+            user_dao.delete_flag(user_id)
     return resp(RespMsg.success)
 
 

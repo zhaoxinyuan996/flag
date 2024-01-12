@@ -135,7 +135,8 @@ class RespMsg:
     })
     flag_not_exist = Message({
         'zh': '标记不存在',
-        'en': 'flag not exist'
+        'en': 'flag not exist',
+        'code': -248
     })
     flag_cant_cover_others_flag = Message({
         'zh': '不可以覆盖别人的标记哦',

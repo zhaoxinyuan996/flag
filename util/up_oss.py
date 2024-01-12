@@ -27,21 +27,22 @@ class UpOss:
         """上传"""
         self.client.put(f'/{bucket}/{filename}', b)
 
-    def delete(self, bucket: str, filename: str):
+    def delete(self, bucket: str, filename: str, not_exist_ignore=True):
         """删除"""
         try:
             self.client.delete(f'/{bucket}/{filename}')
         except UpYunServiceException as e:
-            log.warning(f'up delete: {e}')
+            log.error(f'up delete: {e}')
             # 404忽略
-            if e.status != 404:
-                raise e
+            if e.status == 404 and not_exist_ignore:
+                return
+            raise e
 
     def get_url(self, bucket: str, filename: str):
         return f'{self.host}/{bucket}{filename}'
 
 
-up_oss = UpOss()
+up_oss: UpOss = UpOss()
 
 
 if __name__ == '__main__':
