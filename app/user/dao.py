@@ -35,8 +35,11 @@ class UserDao(Dao):
 
     def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
         sql = ('select id, nickname, is_man, signature, avatar_name, '
-               'vip_deadline, block_deadline, f.fans_id is not null is_follow '
+               'vip_deadline, block_deadline, '
+               'f.fans_id is not null is_follow, '
+               'b.black_id is not null is_black '
                'from users u left join follow f on u.id=f.star_id '
+               'left join black_list b on u.id=b.black_id and b.user_id=:user_id '
                'and f.fans_id=:user_id  where u.id=:other_id')
         return self.execute(sql, other_id=other_id, user_id=user_id)
 

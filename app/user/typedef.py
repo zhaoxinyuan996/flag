@@ -51,6 +51,7 @@ class OtherUser(Model):
     block_deadline: datetime
 
     is_follow: int
+    is_black: int
 
 
 class UserInfo(Model):
@@ -77,6 +78,8 @@ class UserInfo(Model):
             return FlagNum.normal_user - self.flag_num
         elif self.user_class == UserClass.vip:
             return FlagNum.vip_user - self.flag_num
+        elif self.user_class == UserClass.hidden:
+            return FlagNum.hidden_user - self.flag_num
         raise UndefinedError('user class')
 
 

@@ -162,9 +162,6 @@ def set_userinfo(set_: SetUserinfo):
     info = set_.model_dump()
     if not any(info.values()):
         return resp(RespMsg.success)
-    # pydantic和url
-    if 'avatar' in info:
-        info['avatar'] = str(info['avatar'])
     dao.set_userinfo(g.user_id, info)
     return resp(RespMsg.success)
 
@@ -174,11 +171,11 @@ def set_userinfo(set_: SetUserinfo):
 @custom_jwt()
 def follow_add(user: UserId):
     """关注"""
-    if not dao.exist(user.id):
-        return resp(RespMsg.user_not_exist)
     user_id = g.user_id
     if user_id == user.id:
         return resp(RespMsg.cant_follow_self, -1)
+    if not dao.exist(user.id):
+        return resp(RespMsg.user_not_exist)
     dao.follow_add(user_id, user.id)
     return resp(RespMsg.success)
 
@@ -231,9 +228,11 @@ def sign_out_off():
 @custom_jwt()
 def set_black(black: UserId):
     """拉黑"""
+    user_id = g.user_id
+    if user_id == black.id:
+        return resp(RespMsg.cant_black_self, -1)
     if not dao.exist(black.id):
         return resp(RespMsg.user_not_exist, -1)
-
     dao.set_black(g.user_id, black.id)
     return resp(RespMsg.success)
 

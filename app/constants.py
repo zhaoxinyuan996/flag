@@ -54,8 +54,9 @@ class FileType:
 
 
 class FlagNum:
-    normal_user = 100
-    vip_user = 500
+    normal_user = 50
+    vip_user = 200
+    hidden_user = 1000
 
 
 class UserClass:
@@ -63,10 +64,7 @@ class UserClass:
     block = -1
     normal = 0
     vip = 1
-
-
-class FlagType(InEnum):
-    init = 0  # 初始
+    hidden = 2
 
 
 class Message(dict):
@@ -101,6 +99,10 @@ class RespMsg:
     cant_follow_self = Message({
         'zh': '不能关注自己',
         'en': 'cant follow self'
+    })
+    cant_black_self = Message({
+        'zh': '不能拉黑自己',
+        'en': 'cant block self'
     })
     user_sign_in_success = Message({
         'zh': '登录成功',
