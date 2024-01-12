@@ -33,10 +33,10 @@ class FlagDao(Dao):
 
     def update(self, user_id: UUID, flag: UpdateFlag) -> Optional[FlagPictures]:
         sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
-               'ico_name=:ico_name, pictures=:pictures, update_time=current_timestamp '
+               'ico_name=:ico_name, update_time=current_timestamp '
                'where id=:id and user_id=:user_id returning id, pictures')
         return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
-                            status=flag.status, ico_name=flag.ico_name, pictures=flag.pictures)
+                            status=flag.status, ico_name=flag.ico_name)
 
     def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
         sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
