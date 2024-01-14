@@ -107,18 +107,16 @@ id serial primary key,
 flag_id uuid not null,
 user_id uuid not null,
 content text not null,
-root_comment_id int,
-location geometry(geometry,4326),
-show_distance bool not null default true,
-prefix text,
-comment_time timestamp not null,
+parent_id int,
+like_num int default 0,
+distance int,
+create_time timestamp not null,
 extend1 text,
 extend2 text,
 extend3 text
 );
 
 CREATE INDEX flag_comment_index ON flag_comment(flag_id);
-CREATE INDEX root_comment_index ON flag_comment(root_comment_id);
 '''
 
 # 黑名单

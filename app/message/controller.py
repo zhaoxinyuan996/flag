@@ -1,13 +1,28 @@
 import os
+from functools import partial
+from uuid import UUID
+
 from flask import Blueprint
-from app.constants import RespMsg
 from app.message.dao import dao
-from app.message.typedef import SendMessage, ReceiveMessage, AskNoticeReq
-from app.user.controller import exists_black_list, get_user_info
+from app.message.typedef import AskNoticeReq
+from app.user.controller import get_user_info
 from app.util import custom_jwt, args_parse, resp
+from util.database import db
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
+
+
+def _push_message(user_id: UUID, msg: str):
+    from app import app
+
+    with app.app_context():
+        db.session.commit()
+
+
+def push_message(user_id: UUID, msg: str):
+    """写一条消息到库里"""
+    return partial(_push_message, user_id, msg)
 
 
 @bp.route('/ask-notice', methods=['post'])

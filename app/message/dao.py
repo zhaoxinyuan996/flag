@@ -1,4 +1,6 @@
 from typing import List
+from uuid import UUID
+
 from app.base_dao import Dao
 from app.message.typedef import ReceiveMessageResp, AskNotice
 

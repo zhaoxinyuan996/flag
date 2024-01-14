@@ -10,7 +10,7 @@ from flask import Blueprint, request, g
 from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, AddSubComment, FlagId, GetFlagByMap, Flag, GetFlagByFlag, GetFlagByUser
+    AddComment, FlagId, GetFlagByMap, Flag, GetFlagByFlag, GetFlagByUser, CommentId
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
@@ -223,30 +223,40 @@ def delete_fav(delete_: FlagId):
 def add_comment(add_: AddComment):
     """添加标记"""
     user_id = g.user_id
-    if not dao.flag_exist(user_id, add_.flag_id):
+    distance = dao.get_comment_distance(user_id, add_.flag_id, add_.location)
+    # 判断距离
+    if distance is None:
         return resp(RespMsg.flag_not_exist)
-    dao.add_comment(add_.flag_id, user_id, add_.content, add_.location, None, None)
-    return resp(RespMsg.success)
+    # 回复的用户
+    if add_.parent_id:
+        ask_user_nickname = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.parent_id)
+        if not ask_user_nickname:
+            return resp(RespMsg.comment_not_exist)
+
+    comment_id = dao.add_comment(user_id, add_, distance if add_.show_distance else None)
+
+    return resp(RespMsg.success, comment_id=comment_id)
 
 
-@bp.route('/add-sub-comment', methods=['post'])
-@args_parse(AddSubComment)
-@custom_jwt()
-def add_sub_comment(add_: AddSubComment):
-    user_id = g.user_id
-    # 标记是否存在
-    if not dao.flag_exist(user_id, add_.flag_id):
-        return resp(RespMsg.comment_not_exist)
-
-    # 这里要做一个系统通知
-    # 获取用户昵称
-    # 评论层级只能2层，回复评论的root_comment_id一定是null
-    ask_user_nickname = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.root_comment_id)
-    if not ask_user_nickname:
-        return resp(RespMsg.comment_not_exist)
-
-    dao.add_comment(add_.flag_id, user_id, add_.content, add_.location, add_.root_comment_id, ask_user_nickname)
-    return resp(RespMsg.success)
+# @bp.route('/add-sub-comment', methods=['post'])
+# @args_parse(AddComment)
+# @custom_jwt()
+# def add_sub_comment(add_: AddComment):
+#     user_id = g.user_id
+#     # 标记是否存在
+#     if not dao.flag_exist(user_id, add_.flag_id):
+#         return resp(RespMsg.comment_not_exist)
+#
+#     # 这里要做一个系统通知
+#     # 获取用户昵称
+#     # 评论层级只能2层，回复评论的root_comment_id一定是null
+#     ask_user_nickname = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.root_comment_id)
+#     if not ask_user_nickname:
+#         return resp(RespMsg.comment_not_exist)
+#
+#     comment_id = dao.add_comment(
+#         add_.flag_id, user_id, add_.content, add_.location, add_.root_comment_id, ask_user_nickname)
+#     return resp(RespMsg.success, comment_id=comment_id)
 
 
 @bp.route('/get-comment', methods=['post'])
@@ -257,15 +267,15 @@ def get_comment(flag: FlagId):
     user_id = g.user_id
     if not dao.flag_is_open(user_id, flag.id):
         return resp(RespMsg.flag_not_exist)
-    return resp([c.model_dump() for c in dao.get_comment(flag, user_id)])
+    return resp([c.model_dump() for c in dao.get_comment(user_id, flag.id)])
 
 
 @bp.route('/delete-comment', methods=['post'])
-@args_parse(FlagId)
+@args_parse(CommentId)
 @custom_jwt()
-def delete_comment(flag: FlagId):
+def delete_comment(comment: CommentId):
     """删除评论"""
-    dao.delete_comment(flag.id, get_jwt_identity())
+    dao.delete_comment(comment.id, get_jwt_identity())
     return resp(RespMsg.success)
 
 # @bp.route('/get-city', methods=['post'])

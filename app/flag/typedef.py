@@ -50,10 +50,10 @@ class Comment(Model):
     flag_id: Optional[UUID]
     user_id: Optional[UUID]
     content: Optional[_COMMENT_CONTENT]
-    root_comment_id: Optional[int]
-    location: Optional[LOCATION]
-    prefix: Optional[str]
-    comment_time: Optional[datetime]
+    parent_id: Optional[int]
+    like_num: int
+    distance: Optional[int]
+    create_time: Optional[datetime]
 
 
 class AddFlag(Model):
@@ -164,28 +164,28 @@ class FlagId(Model):
     id: UUID
 
 
+class CommentId(Model):
+    id: int
+
+
 class AddComment(Model):
     flag_id: UUID
     content: _COMMENT_CONTENT
     location: LOCATION
     show_distance: bool
-
-
-class AddSubComment(AddComment):
-    root_comment_id: int
-    ask_user_id: UUID
-
-
-class CommentSubResp(Model):
-    id: int
-    content: _COMMENT_CONTENT
-    prefix: str
-    comment_time: datetime
+    distance: Optional[int]
+    # 子评论属性
+    parent_id: Optional[int]
 
 
 class CommentResp(Model):
     id: int
+    owner: bool
+    like_num: int
+    user_id: UUID
+    avatar_name: str
+    nickname: str
     content: _COMMENT_CONTENT
-    prefix: str
-    comment_time: datetime
-    sub_comment: List[CommentSubResp]
+    parent_id: Optional[int]
+    distance: Optional[int]
+    create_time: datetime
