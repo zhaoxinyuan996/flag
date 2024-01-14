@@ -2,6 +2,25 @@ from enum import EnumMeta, Enum
 from typing import Union
 
 
+class FlagApp:
+    version: tuple = (1, 0, 0)
+
+    @property
+    def text_version(self):
+        return '.'.join(self.version)
+
+
+flag_app = FlagApp()
+
+
+class CacheTimeout:
+    """缓存超时时间"""
+    # 用户信息
+    user_info = 7200
+    # 区域标记数
+    region_flag = 1800
+
+
 class InEnumMeta(EnumMeta):
     def __contains__(cls, member):
         return member in cls._value2member_map_
@@ -11,9 +30,9 @@ class InEnum(Enum, metaclass=EnumMeta):
     ...
 
 
-allow_picture_type = ('jpg', 'png', 'gif')
+allow_picture_type = frozenset(('jpg', 'png', 'gif', 'jpeg'))
 # 用户头像限制1m
-user_picture_size = 1024 * 1024
+user_picture_size = 3 * 1024 * 1024
 # flag图片一共大小限制10m
 flag_picture_size = 10 * 1024 * 1024
 # 头像，如果小于这个值，就不做缩略图
@@ -22,20 +41,30 @@ user_picture_thumbnail_size = 50 * 1024
 flag_picture_thumbnail_size = 100 * 1024
 
 
-class FileType(InEnum):
+class JwtConfig:
+    jwt_access_minutes = 30
+    jwt_refresh_minutes = 1440
+    # 每次请求判断，快超时就重新发一个
+    re_jwt_timestamp = 600
+
+
+class FileType:
     head_pic = 'head-pic'
     flag_pic = 'flag-pic'
 
 
-class UserLevel(InEnum):
+class FlagNum:
+    normal_user = 50
+    vip_user = 200
+    hidden_user = 1000
+
+
+class UserClass:
     signing_out = -2
     block = -1
     normal = 0
     vip = 1
-
-
-class FlagType(InEnum):
-    init = 0  # 初始
+    hidden = 2
 
 
 class Message(dict):
@@ -58,10 +87,22 @@ class RespMsg:
         'zh': '密码强度不足',
         'en': 'password is too weak'
     })
+    user_in_black_list = Message({
+        'zh': '你在黑名单中',
+        'en': 'you are in black list',
+    })
     user_not_exist = Message({
         'zh': '用户不存在',
         'en': 'user not exist',
         'code': -252
+    })
+    cant_follow_self = Message({
+        'zh': '不能关注自己',
+        'en': 'cant follow self'
+    })
+    cant_black_self = Message({
+        'zh': '不能拉黑自己',
+        'en': 'cant block self'
     })
     user_sign_in_success = Message({
         'zh': '登录成功',
@@ -94,7 +135,17 @@ class RespMsg:
     })
     flag_not_exist = Message({
         'zh': '标记不存在',
-        'en': 'flag not exist'
+        'en': 'flag not exist',
+        'code': -248
+    })
+    flag_cant_cover_others_flag = Message({
+        'zh': '不可以覆盖别人的标记哦',
+        'en': 'cant cover others flag',
+        'code': -249
+    })
+    comment_not_exist = Message({
+        'zh': '评论不存在',
+        'en': 'comment not exist'
     })
     in_black_list = Message({
         'zh': '在黑名单中或用户不存在',
@@ -104,9 +155,15 @@ class RespMsg:
         'zh': '成功',
         'en': 'success'
     })
+    flag_limit = Message({
+        'zh': '创建的标记已达上限',
+        'en': 'created flag has reached its maximum limit',
+        'code': -250
+    })
     blocked_user = Message({
         'zh': '你已被锁定',
-        'en': 'you have been locked'
+        'en': 'you have been locked',
+        'code': -251
     })
     params_error = Message({
         'zh': '参数错误',
@@ -120,6 +177,27 @@ class RespMsg:
     })
 
 
+# 防止code码重复
+_codes = set()
+for v in vars(RespMsg).values():
+    if isinstance(v, Message) and 'code' in v:
+        if v['code'] in _codes:
+            raise RuntimeError(f'code码重复：{v}')
+        _codes.add(v['code'])
+    else:
+        continue
+
+del _codes
+
+
 class AppError(Exception):
-    def __init__(self, msg: Union[Message, str]):
+    def __init__(self, msg: Union[Message, str, None]):
         self.msg = msg
+
+
+class DCSLockError(AppError):
+    """分布式锁在占用"""
+
+
+class UndefinedError(AppError):
+    ...

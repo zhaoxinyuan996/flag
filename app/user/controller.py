@@ -1,24 +1,25 @@
 import logging
 import os
+import pickle
 import re
-import random
+from uuid import UUID
+
 import requests
 from app.user.dao import dao
-from datetime import datetime
-from functools import partial
 from flask import Blueprint, request, g
-from app.util import resp, custom_jwt, args_parse
-from app.constants import RespMsg, allow_picture_type, user_picture_size, UserLevel, FileType, AppError
-from app.user.typedef import SignIn, SignUp, SetUserNickname, SetUserSignature, UserId
+from app.util import resp, custom_jwt, args_parse, refresh_user, dcs_lock
+from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout
+from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, get_jwt_identity
 from common.job import DelayJob
-from util.database import db
-from util.file_minio import file_minio
+from util.config import config
+from util.database import db, redis_cli
+from util.up_oss import up_oss
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
-
+wechat_config = config['wechat-miniapp']
 
 username_pattern = re.compile(r'^[a-zA-Z0-9_-]{4,16}$')
 password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
@@ -26,52 +27,22 @@ password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 log = logging.getLogger(__name__)
 
 
-def get_user_level() -> UserLevel:
-    """获取用户级别，后面用redis存"""
-    user_id = get_jwt_identity()
-    user = dao.get_level(user_id)
-    if not user:
-        raise AppError(RespMsg.user_not_exist)
-    if user.block_deadline > datetime.now():
-        level = UserLevel.block
-    elif user.vip_deadline > datetime.now():
-        level = UserLevel.vip
+def get_user_info() -> UserInfo:
+    # 加一层g？
+    # 加一层redis
+    user_id = g.user_id
+    key = f'user-info-{user_id}'
+    if value := redis_cli.get(key):
+        return pickle.loads(value)
     else:
-        level = UserLevel.normal
-    g.user_level = level
-    return level
+        info: UserInfo = dao.get_info(user_id)
+        if not info:
+            raise AppError(RespMsg.user_not_exist)
+        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.user_info)
+        return info
 
 
-def get_location(user_id: int, ip: str):
-    """获取ip位置"""
-    from app import app
-
-    def _get_location():
-        try:
-            data = requests.get(api + ip).json()
-            log.info(str(data))
-            return data[key]
-        except requests.RequestException:
-            return None
-    apis = (
-        ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
-        ('http://www.ip508.com/ip?q=', 'addr'),
-        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=', 'addr'),
-    )
-    idx_list = [i for i in range(len(apis))]
-    random.shuffle(idx_list)
-    location = ''
-    for i in idx_list:
-        api, key = apis[i]
-        location = _get_location()
-        if location:
-            break
-    with app.app_context():
-        dao.refresh(user_id, location=location)
-        db.session.commit()
-
-
-def exists_black_list(user_id: int, black_id: int) -> bool:
+def exists_black_list(user_id: UUID, black_id: UUID) -> bool:
     return bool(dao.exist_black_list(user_id, black_id))
 
 
@@ -98,85 +69,100 @@ def sign_in(user: SignIn):
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
-        DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
+        DelayJob.job_queue.put(refresh_user(user_id))
         return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
         return resp(RespMsg.user_sign_in_password_error, -1)
 
 
-@bp.route('/refresh-jwt', methods=['post'])
-@custom_jwt()
-def refresh_kwt():
-    """更新jwt，要结合更多的redis？用户状态控制？"""
-    user_id = get_jwt_identity()
+@bp.route('/sign-up-wechat', methods=['post'])
+@args_parse(SignWechat)
+def sign_up_wechat(wechat: SignWechat):
+    url = ("https://api.weixin.qq.com/sns/jscode2session?"
+           f"appid={wechat_config['app_id']}&secret={wechat_config['app_secret']}&"
+           f"js_code={wechat.code}&grant_type=authorization_code")
+    res = requests.get(url)
+    open_id = res.json().get('openid')
+    if open_id is None:
+        raise ValueError(f'wechat content: {res.json()}')
+
+    user_id = dao.wechat_exist(open_id)
+    new = False
+    if user_id is None:
+        new = True
+        with db.auto_commit():
+            user_id = dao.third_part_sigh_up_third('wechat', open_id, '')
+            dao.third_part_sigh_up_user(user_id)
+
     access_token = create_access_token(identity=user_id)
-    DelayJob.job_queue.put(partial(get_location, user_id, request.remote_addr))
-    return resp(RespMsg.user_sign_in_success, access_token=access_token)
+    DelayJob.job_queue.put(refresh_user(user_id))
+    return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
+
+
+# @bp.route('/refresh-jwt', methods=['post'])
+# @custom_jwt()
+# def refresh_jwt():
+#     """更新jwt，要结合更多的redis？用户状态控制？"""
+#     user_id = g.user_id
+#     access_token = create_access_token(identity=user_id)
+#     DelayJob.job_queue.put(refresh_user(user_id))
+#     return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 
 @bp.route('/user-info', methods=['post'])
+@args_parse(QueryUser)
 @custom_jwt()
-def user_info():
+def user_info(query: QueryUser):
     # 查看别人的信息
-    if request.data:
-        user_id = int(request.json['id'])
-        res = dao.user_info(user_id)
+    user_id = g.user_id
+    if query.id:
+        # 判断是否在黑名单中
+        if dao.exist_black_list(query.id, user_id):
+            return resp(RespMsg.user_in_black_list)
+        res = dao.other_user_info(query.id, user_id)
+        if not res:
+            return resp(RespMsg.user_not_exist)
+        return resp(res.model_dump())
     # 查看自己的信息
     else:
-        res = dao.user_info(get_jwt_identity())
-    if not res:
-        return resp(RespMsg.user_not_exist, -1)
-    return resp(res.model_dump(include={
-        'id', 'nickname', 'username', 'signature', 'profile_picture', 'vip_deadline',
-        'block_deadline', 'belong', 'location'
-    }))
+        res = dao.user_info(user_id)
+        return resp(res.model_dump())
 
 
-@bp.route('/set-profile-picture', methods=['post'])
+@dcs_lock('upload-avatar')
+@bp.route('/upload-avatar', methods=['post'])
 @custom_jwt()
-def set_profile_picture():
+def upload_avatar():
     """设置头像"""
-    user_id = get_jwt_identity()
-    level = get_user_level()
-    suffix = request.files['pic'].filename.rsplit('.', 1)[1]
+    user_id = g.user_id
+    suffix = request.files['file'].filename.rsplit('.', 1)[1]
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
-    b = request.files['pic'].stream.read()
+    b = request.files['file'].stream.read()
     if len(b) > user_picture_size:
         return resp(RespMsg.too_large, -1)
-    file_minio.upload(f'{user_id}.{suffix}', FileType.head_pic, b, level == UserLevel.vip)
-    url = file_minio.get_file_url(FileType.head_pic, f'{user_id}.{suffix}')
-    dao.set_profile_picture(user_id, url)
-    return resp(RespMsg.success)
+
+    # 生成文件名
+    new_filename = f'{user_id}-{up_oss.random_str()}.{suffix}'
+    # 获取旧的图片，删除旧图片
+    old_filename = dao.get_avatar_filename(user_id)
+    if old_filename != 'default.png':
+        up_oss.delete(FileType.head_pic, old_filename)
+    # 设置数据库，再上传
+    dao.set_avatar_filename(user_id, new_filename)
+    up_oss.upload(FileType.head_pic, new_filename, b)
+    return resp(RespMsg.success, avatar_name=new_filename)
 
 
-@bp.route('/get-profile-picture', methods=['post'])
+@bp.route('/set-userinfo', methods=['post'])
+@args_parse(SetUserinfo)
 @custom_jwt()
-def get_profile_picture():
-    """获取头像"""
-    url = file_minio.get_file_url(FileType.head_pic, str(get_jwt_identity()), origin=False)
-    return resp(RespMsg.success, url=url)
-
-
-@bp.route('/set-nickname', methods=['post'])
-@args_parse(SetUserNickname)
-@custom_jwt()
-def set_nickname(user_nickname: SetUserNickname):
-    """设置昵称"""
-    if len(user_nickname.nickname) > 16:
-        return resp(RespMsg.too_long, -1)
-    dao.set_user_nickname(get_jwt_identity(), user_nickname.nickname)
-    return resp(RespMsg.success)
-
-
-@bp.route('/set-signature', methods=['post'])
-@args_parse(SetUserSignature)
-@custom_jwt()
-def set_signature(user_signature: SetUserSignature):
-    """设置签名"""
-    if len(user_signature.signature) > 50:
-        return resp(RespMsg.too_long, -1)
-    dao.set_user_signature(get_jwt_identity(), user_signature.signature)
+def set_userinfo(set_: SetUserinfo):
+    """设置用户信息，可以多个信息一起设置"""
+    info = set_.model_dump()
+    if not any(info.values()):
+        return resp(RespMsg.success)
+    dao.set_userinfo(g.user_id, info)
     return resp(RespMsg.success)
 
 
@@ -185,7 +171,12 @@ def set_signature(user_signature: SetUserSignature):
 @custom_jwt()
 def follow_add(user: UserId):
     """关注"""
-    dao.follow_add(get_jwt_identity(), user.id)
+    user_id = g.user_id
+    if user_id == user.id:
+        return resp(RespMsg.cant_follow_self, -1)
+    if not dao.exist(user.id):
+        return resp(RespMsg.user_not_exist)
+    dao.follow_add(user_id, user.id)
     return resp(RespMsg.success)
 
 
@@ -194,7 +185,7 @@ def follow_add(user: UserId):
 @custom_jwt()
 def follow_remove(user: UserId):
     """取关"""
-    dao.follow_remove(get_jwt_identity(), user.id)
+    dao.follow_remove(g.user_id, user.id)
     return resp(RespMsg.success)
 
 
@@ -203,7 +194,8 @@ def follow_remove(user: UserId):
 def follow_star():
     """我的关注"""
     stars = dao.follow_star(get_jwt_identity())
-    return resp([i.model_dump(include={'id', 'nickname', 'username', 'signature'}) for i in stars])
+    return resp([i.model_dump(include={
+        'id', 'nickname', 'signature', 'avatar_name', 'vip_deadline', 'block_deadline'}) for i in stars])
 
 
 @bp.route('/follow-fans', methods=['post'])
@@ -211,7 +203,8 @@ def follow_star():
 def follow_fans():
     """我的粉丝"""
     fans = dao.follow_fans(get_jwt_identity())
-    return resp([i.model_dump(include={'nickname', 'username', 'signature'}) for i in fans])
+    return resp([i.model_dump(include={
+        'id', 'nickname', 'signature', 'avatar_name', 'vip_deadline', 'block_deadline'}) for i in fans])
 
 
 @bp.route('/sign-out', methods=['post'])
@@ -235,10 +228,12 @@ def sign_out_off():
 @custom_jwt()
 def set_black(black: UserId):
     """拉黑"""
+    user_id = g.user_id
+    if user_id == black.id:
+        return resp(RespMsg.cant_black_self, -1)
     if not dao.exist(black.id):
         return resp(RespMsg.user_not_exist, -1)
-
-    dao.set_black(get_jwt_identity(), black.id)
+    dao.set_black(g.user_id, black.id)
     return resp(RespMsg.success)
 
 
@@ -247,7 +242,7 @@ def set_black(black: UserId):
 @custom_jwt()
 def unset_black(black: UserId):
     """解除拉黑"""
-    dao.unset_black(get_jwt_identity(), black.id)
+    dao.unset_black(g.user_id, black.id)
     return resp(RespMsg.success)
 
 

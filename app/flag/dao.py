@@ -1,100 +1,150 @@
-from typing import List, Optional, Tuple
-from app.flag.typedef import Flag, GetFlagBy, GetFlagByWithType, Comment, CommentResp
-from util.database import Dao
+from typing import List, Optional, Tuple, Any
+from uuid import UUID
+from app.base_dao import Dao
+from app.base_typedef import point, LOCATION
+from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
+    AddFlag, GetFlagByUser, FlagPictures, AddComment
 
 
 class FlagDao(Dao):
-    fields = 'id, user_id, location_x, location_y, content, type, create_time, pictures, is_open'
+    fields = (f"f.id, f.user_id, {Dao.location('f.location', 'location')}, f.name, f.content, "
+              f'f.user_class, f.type, f.create_time, f.update_time, dead_line, '
+              'pictures, status, ico_name ')
+    not_hide = 'status&1=0 and (dead_line is null or dead_line > now())'
+    anonymous = 'status&0b10=0b10'
 
-    def add(self, flag: Flag) -> int:
+    def upload_pictures(self, user_id: UUID, flag_id: UUID, pictures: List[str]):
+        sql = 'update flag set pictures=:pictures where id=:flag_id and user_id=:user_id'
+        self.execute(sql, user_id=user_id, flag_id=flag_id, pictures=pictures)
+
+    def get_pictures(self, user_id: UUID, flag_id: UUID) -> Optional[Any]:
+        sql = 'select pictures from flag where id=:flag_id and user_id=:user_id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def add(self, user_id: UUID, flag: AddFlag, user_class: int) -> Optional[FlagPictures]:
         sql = ('insert into flag '
-               '(user_id, location_x, location_y, content, type, is_open, create_time, update_time, pictures) '
-               'values(:user_id, :location_x, :location_y, :content, :type, :is_open, '
-               'current_timestamp, current_timestamp, array[]::text[]) returning id')
-        return self.execute(sql, user_id=flag.user_id, content=flag.content, is_open=flag.is_open,
-                            location_x=flag.location[0], location_y=flag.location[1], type=flag.type)
+               '(id, user_id, location, name, content, user_class, type, status, create_time, update_time, pictures,'
+               'ico_name, dead_line) '
+               'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :status, '
+               'current_timestamp, current_timestamp, array[]::text[], :ico_name, :dead_line) returning id, pictures')
+        return self.execute(sql, user_id=user_id, content=flag.content, status=flag.status, name=flag.name,
+                            user_class=user_class, location=point(flag.location), type=flag.type,
+                            ico_name=flag.ico_name, dead_line=flag.dead_line)
 
-    def update(self, flag: Flag) -> Optional[int]:
-        sql = 'update flag set pictures=:pictures where id=:id returning id'
-        return self.execute(sql, id=flag.id, pictures=flag.pictures)
+    def update(self, user_id: UUID, flag: UpdateFlag) -> Optional[FlagPictures]:
+        sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
+               'ico_name=:ico_name, update_time=current_timestamp '
+               'where id=:id and user_id=:user_id returning id, pictures')
+        return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
+                            status=flag.status, ico_name=flag.ico_name)
 
-    def get_flag_by_flag(self, flag_id: int, user_id: int) -> Optional[Flag]:
-        sql = f'select {self.fields} from flag where id=:flag_id and (is_open=1 or user_id=:user_id)'
+    def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
+        sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
-    def get_flag_by_user(self, user_id: int, private_id: int, get: GetFlagBy) -> List[Flag]:
-        sql = (f'select {self.fields} from flag where '
-               'user_id=:private_id or (is_open=1 and user_id=:user_id) '
-               f'order by {get.order} {get.asc}')
+    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[Flag]:
+        if user_id:
+            condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
+        else:
+            condition = ' user_id=:private_id '
+        sql = f'select {self.fields} from flag f where {condition} order by {get.order_by}'
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
-    def get_flag_by_location(self, user_id: int, get: GetFlagByWithType) -> List[Flag]:
-        sql = (f'select {self.fields} from flag where '
-               '(user_id=:user_id or is_open=1) and type=:type and '
-               'location_x<:location_x_add and location_x>:location_x_sub and '
-               'location_y<:location_y_add and location_y>:location_y_sub '
-               f'order by {get.order} {get.asc}')
-        return self.execute(sql, user_id=user_id, type=get.type,
-                            location_x_add=get.key[0] + get.distance[0],
-                            location_x_sub=get.key[0] - get.distance[0],
-                            location_y_add=get.key[1] + get.distance[1],
-                            location_y_sub=get.key[1] - get.distance[1],
-                            )
+    def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
+        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name from flag f inner join users u '
+               f'on f.user_id=u.id where '
+               f'(user_id=:user_id or {self.not_hide}) and type=:type '
+               "and ST_Distance(ST_GeographyFromText(:location), "
+               'ST_GeographyFromText(ST_AsText(f.location)))<:distance')
+        return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
 
-    def get_flag_by_location_count(self, user_id: int, get: GetFlagByWithType) -> int:
-        sql = (f'select count(1) from flag where '
-               '(user_id=:user_id or is_open=1) and type=:type and '
-               'location_x<:location_x_add and location_x>:location_x_sub and '
-               'location_y<:location_y_add and location_y>:location_y_sub ')
-        return self.execute(sql, user_id=user_id, type=get.type,
-                            location_x_add=get.key[0] + get.distance[0],
-                            location_x_sub=get.key[0] - get.distance[0],
-                            location_y_add=get.key[1] + get.distance[1],
-                            location_y_sub=get.key[1] - get.distance[1],
-                            )
+    def get_city_by_location(self, location: LOCATION) -> Optional[int]:
+        sql = ('select a.code from adcode a inner join fences f on a.adcode=f.adcode '
+               'where a.rank=2 and ST_Contains(f.fence,ST_GeomFromText(:location))')
+        return self.execute(sql, location=point(location))
 
-    def set_flag_type(self, user_id: int, flag_id: int, flag_type: int):
+    def get_flag_by_city(self, user_id: UUID, code, get: GetFlagByMap) -> List[FlagRegion]:
+        sql = ('with s0 as( '
+               '\n-- 根据所在市查找下属区县\n'
+               'select a.adcode, a.name, a.rank, a.center from adcode a where parent=:code), '
+               's1 as ( '
+               '\n-- 下属区县的电子围栏\n'
+               'select s0.name region_name, center, f.fence from s0 inner join fences f on s0.adcode=f.adcode '
+               'where s0.rank=3 and s0.center is not null), '
+               's2 as ('
+               '\n-- 电子围栏和标记关联\n'
+               f'select location '
+               'from flag where '
+               f'(user_id=:user_id or {self.not_hide}) and type=:type) '
+               f"select count(location) flag_num, s1.region_name, {Dao.location('s1.center', 'location')} "
+               'from s1 left join s2 on ST_Contains(s1.fence,s2.location) '
+               f'group by s1.region_name, s1.center')
+        return self.execute(sql, user_id=user_id, code=code, type=get.type)
+
+    def set_flag_type(self, user_id: UUID, flag_id: UUID, flag_type: int):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
         self.execute(sql, user_id=user_id, flag_id=flag_id, flag_type=flag_type)
 
-    def add_comment(self, flag_id: int, user_id: str, content: str,
-                    location: Tuple[float, float], root_comment_id: Optional[int], prefix: str):
-        prefix = prefix or ''
-        sql = ('insert into flag_comment (flag_id, user_id, content, root_comment_id, '
-               'location_x, location_y, prefix, comment_time) values('
-               ':flag_id, :user_id, :content, :root_comment_id, :location_x, :location_y, :prefix, current_timestamp)')
-        return self.execute(sql, flag_id=flag_id, user_id=user_id, content=content, location_x=location[0],
-                            location_y=location[1], root_comment_id=root_comment_id, prefix=prefix)
+    def delete(self, user_id: UUID, flag_id: UUID) -> Optional[FlagPictures]:
+        sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id, pictures'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def add_sub_comment(self, root_comment_id: int):
-        sql = 'update flag_comment set comment_time=current_timestamp where id=:root_comment_id'
-        self.execute(sql, root_comment_id=root_comment_id)
+    def get_fav(self, user_id: UUID) -> List[FavFlag]:
+        sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
+               f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name, "
+               'pictures, dead_line from fav left join flag f on fav.flag_id=f.id '
+               f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id)')
+        return self.execute(sql, user_id=user_id)
 
-    def get_nickname_by_comment_id(self, root_comment_id: int) -> Optional[str]:
-        sql = ('select nickname from flag_comment c inner join users u on c.user_id=u.id '
-               'where root_comment_id=:root_comment_id')
-        return self.execute(sql, root_comment_id=root_comment_id)
+    def add_fav(self, user_id: UUID, flag_id: UUID):
+        sql = ('insert into fav (user_id, flag_id, create_time)'
+               'values(:user_id,:flag_id,current_timestamp)')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def get_comment(self, flag_id: int, user_id: int) -> List[CommentResp]:
-        sql = (
-            'with s1 as (select id, user_id, content, root_comment_id, prefix, comment_time from flag_comment where flag_id=1), '
-            's2 as (select u.nickname, u.profile_picture, s1.id, user_id, content, prefix, comment_time from s1 inner join users u on s1.user_id=u.id where root_comment_id is null), '
-            's3 as (select u.nickname, u.profile_picture, s1.id, user_id, content, prefix, comment_time, root_comment_id from s1 inner join users u on s1.user_id=u.id where root_comment_id is not null), '
-            's4 as (select s2.nickname, s2.profile_picture, s2.id, s2.user_id, s2.content, s2.prefix, s2.comment_time, '
-            's3.nickname s_nickname, s3.profile_picture s_profile_picture, s3.id s_id, s3.user_id s_user_id, s3.content s_content, s3.prefix s_prefix, s3.comment_time s_comment_time from s2 left join s3 on s2.id=s3.root_comment_id) '
-            'select max(nickname) nickname, max(profile_picture) profile_picture, id, max(user_id) user_id, max(content) content, max(prefix) prefix, max(comment_time) comment_time, '
-            'case when max(s_id) is null then array[]::json[] else '
-            "array_agg(json_build_object('nickname', s_nickname, 'profile_picture', s_profile_picture, 'id', s_id, 'user_id', s_user_id, 'content', s_content, 'prefix', s_prefix, 'comment_time', s_comment_time) order by comment_time desc) end sub_comment "
-            'from s4 group by id order by comment_time desc;')
-        return self.execute(sql, flag_id=flag_id, user_id=user_id)
+    def delete_fav(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
+        sql = 'delete from fav where user_id=:user_id and flag_id=:flag_id returning flag_id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def delete_comment(self, comment_id: int, user_id: int):
-        sql = 'delete from flag_comment where (id=:comment_id or root_comment_id=:comment_id) and user_id=:user_id'
+    def flag_exist(self, user_id: UUID, flag_id: UUID) -> Optional[int]:
+        sql = ('select 1 from flag f inner join users u on '
+               f'f.user_id=u.id where (f.user_id=:user_id or f.{self.not_hide}) and f.id=:flag_id')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def get_comment_distance(self, user_id: UUID, flag_id: UUID, location: LOCATION) -> Optional[int]:
+        sql = ('select ST_Distance(location, :location) from flag f where id=:flag_id '
+               f'and (f.user_id=:user_id or f.{self.not_hide}) and not {self.anonymous}')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id, location=point(location))
+
+    def add_comment(self, user_id: UUID, add: AddComment, distance) -> int:
+        sql = ('insert into flag_comment (flag_id, user_id, content, parent_id, '
+               'like_num, distance, create_time) values( '
+               ':flag_id, :user_id, :content, :parent_id, 0, :distance, '
+               'current_timestamp) returning id')
+        return self.execute(sql, flag_id=add.flag_id, user_id=user_id, content=add.content,
+                            location=point(add.location), parent_id=add.parent_id, distance=distance)
+
+    def get_nickname_by_comment_id(self, user_id: UUID, flag_id: UUID, parent_id: int) -> Optional[str]:
+        sql = ('with s1 as (select c.user_id from flag_comment c inner join flag f '
+               f'on c.flag_id=f.id where (f.user_id=:user_id or f.{self.not_hide}) and f.id=:flag_id '
+               'and c.id=:parent_id and c.parent_id is null) select u.nickname from users u inner join s1 '
+               'on u.id=s1.user_id')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id, parent_id=parent_id)
+
+    # 应该是不需要这种形式
+    # 等客户端做到的时候再改
+    def get_comment(self, user_id: UUID, flag_id: UUID) -> List[CommentResp]:
+        sql = ('select u.id=:user_id owner, u.id user_id, u.avatar_name, u.nickname, '
+               'c.id, c.like_num, c.content, c.parent_id, c.distance, c.create_time from flag_comment c '
+               'inner join users u on c.user_id=u.id where c.flag_id=:flag_id')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def delete_comment(self, comment_id: int, user_id: UUID):
+        sql = 'delete from flag_comment where (id=:comment_id or parent_id=:comment_id) and user_id=:user_id'
         self.execute(sql, comment_id=comment_id, user_id=user_id)
 
-    def flag_is_open(self, user_id: int, flag_id: int) -> int:
-        sql = 'select exists(select 1 from flag where id=:flag_id and (is_open=1 or user_id=:user_id))'
+    def flag_is_open(self, user_id: UUID, flag_id: UUID) -> int:
+        sql = f'select exists(select 1 from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id))'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
 
-dao = FlagDao()
+dao: FlagDao = FlagDao()
