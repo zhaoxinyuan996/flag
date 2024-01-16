@@ -1,9 +1,9 @@
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Any
 from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
-    AddFlag, GetFlagByUser, FlagPictures, AddComment
+    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment
 
 
 class FlagDao(Dao):
@@ -47,7 +47,7 @@ class FlagDao(Dao):
             condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
         else:
             condition = ' user_id=:private_id '
-        sql = f'select {self.fields} from flag f where {condition} order by {get.order_by}'
+        sql = f'select {self.fields},  from flag f where {condition} order by {get.order_by}'
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
@@ -130,21 +130,55 @@ class FlagDao(Dao):
                'on u.id=s1.user_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id, parent_id=parent_id)
 
-    # 应该是不需要这种形式
-    # 等客户端做到的时候再改
     def get_comment(self, user_id: UUID, flag_id: UUID) -> List[CommentResp]:
         sql = ('select u.id=:user_id owner, u.id user_id, u.avatar_name, u.nickname, '
                'c.id, c.like_num, c.content, c.parent_id, c.distance, c.create_time from flag_comment c '
                'inner join users u on c.user_id=u.id where c.flag_id=:flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def delete_comment(self, comment_id: int, user_id: UUID):
-        sql = 'delete from flag_comment where (id=:comment_id or parent_id=:comment_id) and user_id=:user_id'
-        self.execute(sql, comment_id=comment_id, user_id=user_id)
+    def delete_comment(self, comment_id: int, user_id: UUID) -> Optional[DeleteComment]:
+        sql = ('delete from flag_comment where (id=:comment_id or parent_id=:comment_id) and user_id=:user_id '
+               'returning parent_id')
+        return self.execute(sql, comment_id=comment_id, user_id=user_id)
 
     def flag_is_open(self, user_id: UUID, flag_id: UUID) -> int:
         sql = f'select exists(select 1 from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id))'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def insert_statistics(self, flag_id: UUID):
+        sql = ('insert into flag_statistics (flag_id, like_users, fav_users, comment_users, update_time) '
+               'values(:flag_id, null, null, null, current_timestamp)')
+        self.execute(sql, flag_id=flag_id)
+
+    def delete_statistics(self, flag_id: UUID):
+        """flag_id只能是接口返回值，防止接口注入，因为没有限定user_id"""
+        sql = 'delete from flag_statistics where flag_id=:flag_id'
+        self.execute(sql, flag_id=flag_id)
+
+    def set_statistics(self,
+                       flag_id: UUID,
+                       like_users_up: List[UUID] = (),
+                       like_users_down: List[UUID] = (),
+                       fav_users_up: List[UUID] = (),
+                       fav_users_down: List[UUID] = (),
+                       comment_users_up: List[UUID] = (),
+                       comment_users_down: List[UUID] = (),
+                       ):
+        loop = []
+        for uuid in like_users_up:
+            loop.append(f'''like_users = like_users||'"{uuid}"=>current_timestamp'::hstore''')
+        for uuid in like_users_down:
+            loop.append(f'''like_users = delete(like_users, "{uuid}")''')
+        for uuid in fav_users_up:
+            loop.append(f'''fav_users = fav_users||'"{uuid}"=>current_timestamp'::hstore''')
+        for uuid in fav_users_down:
+            loop.append(f'''fav_users = delete(fav_users, "{uuid}")''')
+        for uuid in comment_users_up:
+            loop.append(f'''comment_users = comment_users||'"{uuid}"=>current_timestamp'::hstore''')
+        for uuid in comment_users_down:
+            loop.append(f'''comment_users = delete(comment_users, "{uuid}")''')
+        sql = f"update flag_statistics set {','.join(loop)} where flag_id=:flag_id"
+        self.execute(sql, flag_id=flag_id)
 
 
 dao: FlagDao = FlagDao()

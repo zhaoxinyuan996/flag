@@ -178,6 +178,11 @@ class AddComment(Model):
     parent_id: Optional[int]
 
 
+class DeleteComment(Model):
+    flag_id: UUID
+    parent_id: Optional[int]
+
+
 class CommentResp(Model):
     id: int
     owner: bool
@@ -189,3 +194,11 @@ class CommentResp(Model):
     parent_id: Optional[int]
     distance: Optional[int]
     create_time: datetime
+
+
+class FlagStatistics(Model):
+    flag_id: Optional[UUID]
+    like_users: Optional[dict]
+    fav_users: Optional[dict]
+    comment_users: Optional[dict]
+    update_time: datetime

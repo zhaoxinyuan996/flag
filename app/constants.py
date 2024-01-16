@@ -53,6 +53,15 @@ class FileType:
     flag_pic = 'flag-pic'
 
 
+class StatisticsType:
+    like_users_up = 'like_users_up'
+    like_users_down = 'like_users_down'
+    fav_users_up = 'fav_users_up'
+    fav_users_down = 'fav_users_down'
+    comment_users_up = 'comment_users_up'
+    comment_users_down = 'comment_users_down'
+
+
 class FlagNum:
     normal_user = 50
     vip_user = 200
