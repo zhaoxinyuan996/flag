@@ -2,7 +2,7 @@ from typing import List, Optional, Any
 from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
-from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
+from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, OpenFlag, \
     AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment
 
 
@@ -108,11 +108,13 @@ class FlagDao(Dao):
         sql = f'select exist(like_users, {user_id}) where flag_id=:flag_id'
         return self.execute(sql, flag_id=flag_id)
 
-    def get_fav(self, user_id: UUID) -> List[FavFlag]:
-        sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
-               f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name, "
-               'pictures, dead_line from fav left join flag f on fav.flag_id=f.id '
-               f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id)')
+    def get_fav(self, user_id: UUID) -> List[OpenFlag]:
+        sql = (f'select {self.fields}, '
+               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from fav left join flag f on fav.flag_id=f.id '
+               'left join flag_statistics s on fav.flag_id=s.flag_id '
+               f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id) order by fav.create_time')
         return self.execute(sql, user_id=user_id)
 
     def add_fav(self, user_id: UUID, flag_id: UUID) -> Optional[UUID]:

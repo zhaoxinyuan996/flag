@@ -141,32 +141,18 @@ class OpenFlag(Flag):
     nickname: Optional[str]
     avatar_name: Optional[str]
     # 相关
-    is_like: bool
-    is_fav: bool
+    is_like: bool = False
+    is_fav: bool = False
     # 统计
-    like_num: int
-    fav_num: int
-    comment_num: int
+    like_num: int = 0
+    fav_num: int = 0
+    comment_num: int = 0
 
     def __init__(self, **kwargs):
         # 匿名标记
         if kwargs['status'] & 0b10 == 0b10 and kwargs['user_id'] != g.user_id:
             kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_name'] = None
         super().__init__(**kwargs)
-
-
-class FavFlag(Model):
-    id: Optional[UUID]
-    user_id: Optional[UUID]
-    location: Optional[LOCATION]
-    name: Optional[str]
-    content: Optional[_FLAG_CONTENT]
-    type: Optional[_TYPE]
-    user_class: Optional[int]
-    update_time: Optional[datetime]
-    ico_name: Optional[str]
-    pictures: Optional[List[str]]
-    dead_line: Optional[datetime]
 
 
 class FlagId(Model):
