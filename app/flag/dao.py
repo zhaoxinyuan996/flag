@@ -1,3 +1,4 @@
+import time
 from typing import List, Optional, Any
 from uuid import UUID
 from app.base_dao import Dao
@@ -96,12 +97,12 @@ class FlagDao(Dao):
                f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id)')
         return self.execute(sql, user_id=user_id)
 
-    def add_fav(self, user_id: UUID, flag_id: UUID):
+    def add_fav(self, user_id: UUID, flag_id: UUID) -> Optional[UUID]:
         sql = ('insert into fav (user_id, flag_id, create_time)'
-               'values(:user_id,:flag_id,current_timestamp)')
+               'values(:user_id,:flag_id,current_timestamp) returning flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def delete_fav(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
+    def delete_fav(self, user_id: UUID, flag_id: UUID) -> Optional[UUID]:
         sql = 'delete from fav where user_id=:user_id and flag_id=:flag_id returning flag_id'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
@@ -166,17 +167,17 @@ class FlagDao(Dao):
                        ):
         loop = []
         for uuid in like_users_up:
-            loop.append(f'''like_users = like_users||'"{uuid}"=>current_timestamp'::hstore''')
+            loop.append(f" like_users['{uuid}']=current_timestamp::text ")
         for uuid in like_users_down:
-            loop.append(f'''like_users = delete(like_users, "{uuid}")''')
+            loop.append(f''' like_users = delete(like_users, '{uuid}') ''')
         for uuid in fav_users_up:
-            loop.append(f'''fav_users = fav_users||'"{uuid}"=>current_timestamp'::hstore''')
+            loop.append(f" fav_users['{uuid}']=current_timestamp::text ")
         for uuid in fav_users_down:
-            loop.append(f'''fav_users = delete(fav_users, "{uuid}")''')
+            loop.append(f''' fav_users = delete(fav_users, '{uuid}') ''')
         for uuid in comment_users_up:
-            loop.append(f'''comment_users = comment_users||'"{uuid}"=>current_timestamp'::hstore''')
+            loop.append(f" comment_users['{uuid}']=current_timestamp::text ")
         for uuid in comment_users_down:
-            loop.append(f'''comment_users = delete(comment_users, "{uuid}")''')
+            loop.append(f''' comment_users = delete(comment_users, '{uuid}') ''')
         sql = f"update flag_statistics set {','.join(loop)} where flag_id=:flag_id"
         self.execute(sql, flag_id=flag_id)
 

@@ -1,7 +1,7 @@
 import json
 import os
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from uuid import UUID
 
 from app.user.dao import dao as user_dao
@@ -47,12 +47,15 @@ def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
         return code, value
 
 
-def set_statistics(user_id: UUID, flag_id: UUID, key: str):
+def set_statistics(user_id: Union[UUID, List[UUID]], flag_id: UUID, key: str):
     """
     设置flag更改状态,
     后面改成每n秒同步一次？事务一致性怎么保证？操作也放进缓存再做同步？
     """
-    dao.set_statistics(flag_id, **{key: (user_id, )})
+    if isinstance(user_id, (UUID, str)):
+        user_id = (user_id, )
+    assert getattr(StatisticsType, key)
+    dao.set_statistics(flag_id, **{key: user_id})
 
 
 def _build(content: str) -> List[Tuple[str, bytes]]:
@@ -212,12 +215,12 @@ def get_fav():
 @bp.route('/add-fav', methods=['post'])
 @args_parse(FlagId)
 @custom_jwt()
-def add_fav(delete_: FlagId):
+def add_fav(add_: FlagId):
     """添加收藏"""
     user_id = g.user_id
     with db.auto_commit():
-        dao.add_fav(user_id, delete_.id)
-        dao.set_statistics(delete_.id, StatisticsType.fav_users_up)
+        if flag_id := dao.add_fav(user_id, add_.id):
+            set_statistics(user_id, flag_id, StatisticsType.fav_users_up)
     return resp(RespMsg.success)
 
 
@@ -228,8 +231,8 @@ def delete_fav(delete_: FlagId):
     """删除收藏"""
     user_id = g.user_id
     with db.auto_commit():
-        dao.delete_fav(user_id, delete_.id)
-        dao.set_statistics(delete_.id, StatisticsType.fav_users_down)
+        if flag_id := dao.delete_fav(user_id, delete_.id):
+            set_statistics(user_id, flag_id, StatisticsType.fav_users_down)
     return resp(RespMsg.success)
 
 
@@ -252,8 +255,8 @@ def add_comment(add_: AddComment):
     else:
         # 根评论才计数
         with db.auto_commit():
-            comment_id = dao.add_comment(user_id, add_, distance if add_.show_distance else None)
-            dao.set_statistics(add_.flag_id, StatisticsType.comment_users_up)
+            if comment_id := dao.add_comment(user_id, add_, distance if add_.show_distance else None):
+                set_statistics(user_id, add_.flag_id, StatisticsType.comment_users_up)
 
     return resp(RespMsg.success, comment_id=comment_id)
 
@@ -299,7 +302,7 @@ def delete_comment(comment: CommentId):
         delete_ = dao.delete_comment(comment.id, get_jwt_identity())
         # 如果是根评论就删除计数
         if delete_ and delete_.parent_id is None:
-            dao.set_statistics(delete_.flag_id, StatisticsType.comment_users_down)
+            set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment_users_down)
     return resp(RespMsg.success)
 
 # @bp.route('/get-city', methods=['post'])
