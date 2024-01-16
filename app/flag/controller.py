@@ -8,7 +8,8 @@ from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, g
 from flask_jwt_extended import get_jwt_identity
-from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout
+from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout, \
+    StatisticsType
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
     AddComment, FlagId, GetFlagByMap, Flag, GetFlagByFlag, GetFlagByUser, CommentId
 from app.user.controller import get_user_info
@@ -44,6 +45,14 @@ def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
         value = [f.model_dump() for f in dao.get_flag_by_city(user_id, code, get)]
         redis_cli.set(key, json.dumps(value), ex=CacheTimeout.region_flag)
         return code, value
+
+
+def set_statistics(user_id: UUID, flag_id: UUID, key: str):
+    """
+    设置flag更改状态,
+    后面改成每n秒同步一次？事务一致性怎么保证？操作也放进缓存再做同步？
+    """
+    dao.set_statistics(flag_id, **{key: (user_id, )})
 
 
 def _build(content: str) -> List[Tuple[str, bytes]]:
@@ -90,6 +99,7 @@ def add(flag: AddFlag):
     with db.auto_commit():
         user_dao.add_flag(user_id)
         flag_p = dao.add(user_id, flag, user_class)
+        dao.insert_statistics(flag_p.id)
 
     return resp(RespMsg.success, flag_id=flag_p.id)
 
@@ -184,7 +194,10 @@ def delete(delete_: FlagId):
         if flag_pictures := dao.delete(user_id, delete_.id):
             for p in flag_pictures.pictures:
                 up_oss.delete(FileType.flag_pic, p)
+            # 删除用户表的计数器
             user_dao.delete_flag(user_id)
+            # 删除标记统计表
+            dao.delete_statistics(flag_pictures.id)
     return resp(RespMsg.success)
 
 
@@ -193,7 +206,6 @@ def delete(delete_: FlagId):
 def get_fav():
     """我的收藏"""
     user_id = g.user_id
-
     return resp([i.model_dump() for i in dao.get_fav(user_id)])
 
 
@@ -201,9 +213,11 @@ def get_fav():
 @args_parse(FlagId)
 @custom_jwt()
 def add_fav(delete_: FlagId):
-    """删除收藏"""
+    """添加收藏"""
     user_id = g.user_id
-    dao.add_fav(user_id, delete_.id)
+    with db.auto_commit():
+        dao.add_fav(user_id, delete_.id)
+        dao.set_statistics(delete_.id, StatisticsType.fav_users_up)
     return resp(RespMsg.success)
 
 
@@ -213,7 +227,9 @@ def add_fav(delete_: FlagId):
 def delete_fav(delete_: FlagId):
     """删除收藏"""
     user_id = g.user_id
-    dao.delete_fav(user_id, delete_.id)
+    with db.auto_commit():
+        dao.delete_fav(user_id, delete_.id)
+        dao.set_statistics(delete_.id, StatisticsType.fav_users_down)
     return resp(RespMsg.success)
 
 
@@ -232,8 +248,12 @@ def add_comment(add_: AddComment):
         ask_user_nickname = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.parent_id)
         if not ask_user_nickname:
             return resp(RespMsg.comment_not_exist)
-
-    comment_id = dao.add_comment(user_id, add_, distance if add_.show_distance else None)
+        comment_id = dao.add_comment(user_id, add_, distance if add_.show_distance else None)
+    else:
+        # 根评论才计数
+        with db.auto_commit():
+            comment_id = dao.add_comment(user_id, add_, distance if add_.show_distance else None)
+            dao.set_statistics(add_.flag_id, StatisticsType.comment_users_up)
 
     return resp(RespMsg.success, comment_id=comment_id)
 
@@ -275,7 +295,11 @@ def get_comment(flag: FlagId):
 @custom_jwt()
 def delete_comment(comment: CommentId):
     """删除评论"""
-    dao.delete_comment(comment.id, get_jwt_identity())
+    with db.auto_commit():
+        delete_ = dao.delete_comment(comment.id, get_jwt_identity())
+        # 如果是根评论就删除计数
+        if delete_ and delete_.parent_id is None:
+            dao.set_statistics(delete_.flag_id, StatisticsType.comment_users_down)
     return resp(RespMsg.success)
 
 # @bp.route('/get-city', methods=['post'])
