@@ -1,7 +1,9 @@
 from uuid import UUID
 from datetime import datetime, timedelta
+
+from flask import g
 from pydantic import constr, confloat, conint
-from typing import Optional, List, Union
+from typing import Optional, List
 from app.base_typedef import LOCATION
 from app.constants import UserClass
 from app.user.controller import get_user_info
@@ -138,10 +140,17 @@ class OpenFlag(Flag):
     user_id: Optional[UUID]
     nickname: Optional[str]
     avatar_name: Optional[str]
+    # 相关
+    is_like: bool
+    is_fav: bool
+    # 统计
+    like_num: int
+    fav_num: int
+    comment_num: int
 
     def __init__(self, **kwargs):
         # 匿名标记
-        if kwargs['status'] & 0b10 == 0b10:
+        if kwargs['status'] & 0b10 == 0b10 and kwargs['user_id'] != g.user_id:
             kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_name'] = None
         super().__init__(**kwargs)
 

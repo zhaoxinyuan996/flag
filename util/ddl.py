@@ -177,13 +177,16 @@ create_time timestamp
 )
 '''
 
-# 标记统计表
+# 标记统计表，hstore类型一定不能为null，null会导致所有函数的返回值都是null而非布尔值，可以为空字串
 '''
 create table flag_statistics(
 flag_id uuid not null primary key,
-like_users hstore,
-fav_users hstore,
-comment_users hstore,
+like_users hstore not null default '',
+fav_users hstore not null default '',
+comment_users hstore not null default '',
+like_num int not null default 0,
+fav_num int not null default 0,
+comment_num int not null default 0,
 update_time timestamp not null
 );
 '''

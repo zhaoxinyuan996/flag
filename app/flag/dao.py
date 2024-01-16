@@ -1,9 +1,8 @@
-import time
 from typing import List, Optional, Any
 from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
-from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
+from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
     AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment
 
 
@@ -39,16 +38,27 @@ class FlagDao(Dao):
         return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
                             status=flag.status, ico_name=flag.ico_name)
 
-    def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
-        sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
+    def get_flag_by_flag(self, user_id: UUID, flag_id: UUID) -> Optional[OpenFlag]:
+        condition = f'({self.not_hide} and not {self.anonymous}) or user_id=:user_id '
+        sql = (f'select {self.fields}, '
+               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from flag f inner join flag_statistics s on f.id=s.flag_id '
+               f'where f.id=:flag_id and {condition} and s.flag_id=:flag_id')
+        print(self.text(sql, flag_id=flag_id, user_id=user_id))
         return self.execute(sql, flag_id=flag_id, user_id=user_id)
 
-    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[Flag]:
+    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[OpenFlag]:
         if user_id:
             condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
         else:
             condition = ' user_id=:private_id '
-        sql = f'select {self.fields},  from flag f where {condition} order by {get.order_by}'
+        sql = (f'select {self.fields}, '
+               f"exist(like_users, '{private_id}') is_like, exist(fav_users, '{private_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from flag f inner join flag_statistics s on f.id=s.flag_id '
+               f'where {condition} order by {get.order_by}')
+        print(self.text(sql, user_id=user_id, private_id=private_id))
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
@@ -89,6 +99,10 @@ class FlagDao(Dao):
     def delete(self, user_id: UUID, flag_id: UUID) -> Optional[FlagPictures]:
         sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id, pictures'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def is_like(self, user_id: UUID, flag_id: UUID) -> Optional[bool]:
+        sql = f'select exist(like_users, {user_id}) where flag_id=:flag_id'
+        return self.execute(sql, flag_id=flag_id)
 
     def get_fav(self, user_id: UUID) -> List[FavFlag]:
         sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
@@ -137,7 +151,7 @@ class FlagDao(Dao):
                'inner join users u on c.user_id=u.id where c.flag_id=:flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def delete_comment(self, comment_id: int, user_id: UUID) -> Optional[DeleteComment]:
+    def delete_comment(self, user_id: UUID, comment_id: int) -> Optional[DeleteComment]:
         sql = ('delete from flag_comment where (id=:comment_id or parent_id=:comment_id) and user_id=:user_id '
                'returning parent_id')
         return self.execute(sql, comment_id=comment_id, user_id=user_id)
@@ -178,7 +192,15 @@ class FlagDao(Dao):
             loop.append(f" comment_users['{uuid}']=current_timestamp::text ")
         for uuid in comment_users_down:
             loop.append(f''' comment_users = delete(comment_users, '{uuid}') ''')
-        sql = f"update flag_statistics set {','.join(loop)} where flag_id=:flag_id"
+        like_diff = len(like_users_up) - len(like_users_down)
+        fav_diff = len(fav_users_up) - len(fav_users_down)
+        comment_diff = len(comment_users_up) - len(comment_users_down)
+        sql = (f"update flag_statistics set {','.join(loop)} "
+               f", like_num={like_diff}+like_num "
+               f", fav_num={fav_diff}+fav_num "
+               f", comment_num={comment_diff}+comment_num "
+               f"where flag_id=:flag_id")
+        print(sql)
         self.execute(sql, flag_id=flag_id)
 
 
