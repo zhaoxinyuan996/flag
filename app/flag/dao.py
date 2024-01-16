@@ -39,7 +39,7 @@ class FlagDao(Dao):
                             status=flag.status, ico_name=flag.ico_name)
 
     def get_flag_by_flag(self, user_id: UUID, flag_id: UUID) -> Optional[OpenFlag]:
-        condition = f'({self.not_hide} and not {self.anonymous}) or user_id=:user_id '
+        condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
         sql = (f'select {self.fields}, '
                f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
                f'like_num, fav_num, comment_num '
@@ -62,7 +62,7 @@ class FlagDao(Dao):
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
-        condition = f'({self.not_hide} and not {self.anonymous}) or user_id=:user_id '
+        condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
         sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name, '
                f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
                f'like_num, fav_num, comment_num '
