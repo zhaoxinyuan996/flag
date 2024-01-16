@@ -62,9 +62,13 @@ class FlagDao(Dao):
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
-        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name from flag f inner join users u '
-               f'on f.user_id=u.id where '
-               f'(user_id=:user_id or {self.not_hide}) and type=:type '
+        condition = f'({self.not_hide} and not {self.anonymous}) or user_id=:user_id '
+        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name, '
+               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from flag f inner join users u on f.user_id=u.id '
+               f'inner join flag_statistics s on f.id=s.flag_id '
+               f'where {condition} and type=:type '
                "and ST_Distance(ST_GeographyFromText(:location), "
                'ST_GeographyFromText(ST_AsText(f.location)))<:distance')
         return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
