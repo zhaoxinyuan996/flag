@@ -71,7 +71,7 @@ class Dao:
     def text(sql: str, **kwargs) -> str:
         """打印下sql debug用"""
         for k, v in kwargs.items():
-            sql = sql.replace(f':{k}', f"'{v}'" if isinstance(v, str) else str(v))
+            sql = sql.replace(f':{k}', f"'{v}'" if isinstance(v, (str, UUID)) else str(v))
         return sql
 
     @staticmethod

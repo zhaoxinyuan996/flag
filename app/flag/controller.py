@@ -7,11 +7,10 @@ from uuid import UUID
 from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, g
-from flask_jwt_extended import get_jwt_identity
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout, \
     StatisticsType
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, Flag, GetFlagByFlag, GetFlagByUser, CommentId
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
 from app.util import args_parse, resp, custom_jwt, get_request_list
@@ -26,10 +25,6 @@ log = logging.getLogger(__name__)
 
 # with open(os.path.join(os.path.dirname(__file__), 'location_code.json'), encoding='utf-8') as city_file:
 #     location_code = json.loads(city_file.read())
-
-
-def ex_user(f: Flag) -> set:
-    return {'user_id'} if str(f.user_id) != g.user_id and f.hide else {}
 
 
 def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
@@ -148,15 +143,15 @@ def upload_pictures():
 @args_parse(GetFlagByUser)
 @custom_jwt()
 def get_flag_by_user(get: GetFlagByUser):
-    return resp([f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_user(get.id, g.user_id, get)])
+    return resp([f.model_dump() for f in dao.get_flag_by_user(get.id, g.user_id, get)])
 
 
 @bp.route('/get-flag-by-flag', methods=['post'])
 @args_parse(GetFlagByFlag)
 @custom_jwt()
 def get_flag_by_flag(get: GetFlagByFlag):
-    if flag := dao.get_flag_by_flag(get.id, get_jwt_identity()):
-        return resp(flag.model_dump(exclude=ex_user(flag)))
+    if flag := dao.get_flag_by_flag(g.user_id, get.id):
+        return resp(flag.model_dump())
     return resp(RespMsg.flag_not_exist)
 
 
@@ -171,7 +166,7 @@ def get_flag_by_map(get: GetFlagByMap):
         return resp({
             'code': None,
             'detail': True,
-            'flags': [f.model_dump(exclude=ex_user(f)) for f in dao.get_flag_by_map(g.user_id, get)]})
+            'flags': [f.model_dump() for f in dao.get_flag_by_map(g.user_id, get)]})
     # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
         code, data = get_region_flag(g.user_id, get)
@@ -236,11 +231,35 @@ def delete_fav(delete_: FlagId):
     return resp(RespMsg.success)
 
 
+@bp.route('/add-like', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def add_like(like: FlagId):
+    """点赞"""
+    user_id = g.user_id
+    is_like = dao.is_like(user_id, like.id)
+    if not is_like:
+        set_statistics(user_id, like.id, StatisticsType.like_users_up)
+    return resp(RespMsg.success)
+
+
+@bp.route('/delete-like', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def delete_like(delete_: FlagId):
+    """取消收藏"""
+    user_id = g.user_id
+    is_like = dao.is_like(user_id, delete_.id)
+    if is_like:
+        set_statistics(user_id, delete_.id, StatisticsType.like_users_down)
+    return resp(RespMsg.success)
+
+
 @bp.route('/add-comment', methods=['post'])
 @args_parse(AddComment)
 @custom_jwt()
 def add_comment(add_: AddComment):
-    """添加标记"""
+    """添加评论"""
     user_id = g.user_id
     distance = dao.get_comment_distance(user_id, add_.flag_id, add_.location)
     # 判断距离
@@ -299,7 +318,7 @@ def get_comment(flag: FlagId):
 def delete_comment(comment: CommentId):
     """删除评论"""
     with db.auto_commit():
-        delete_ = dao.delete_comment(comment.id, get_jwt_identity())
+        delete_ = dao.delete_comment(g.user_id, comment.id)
         # 如果是根评论就删除计数
         if delete_ and delete_.parent_id is None:
             set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment_users_down)

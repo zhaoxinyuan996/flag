@@ -11,7 +11,7 @@ from app.util import resp, custom_jwt, args_parse, refresh_user, dcs_lock
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, get_jwt_identity
+from flask_jwt_extended import create_access_token
 from common.job import DelayJob
 from util.config import config
 from util.database import db, redis_cli
@@ -193,7 +193,7 @@ def follow_remove(user: UserId):
 @custom_jwt()
 def follow_star():
     """我的关注"""
-    stars = dao.follow_star(get_jwt_identity())
+    stars = dao.follow_star(g.user_id)
     return resp([i.model_dump(include={
         'id', 'nickname', 'signature', 'avatar_name', 'vip_deadline', 'block_deadline'}) for i in stars])
 
@@ -202,7 +202,7 @@ def follow_star():
 @custom_jwt()
 def follow_fans():
     """我的粉丝"""
-    fans = dao.follow_fans(get_jwt_identity())
+    fans = dao.follow_fans(g.user_id)
     return resp([i.model_dump(include={
         'id', 'nickname', 'signature', 'avatar_name', 'vip_deadline', 'block_deadline'}) for i in fans])
 
@@ -211,7 +211,7 @@ def follow_fans():
 @custom_jwt()
 def sign_out():
     """销号"""
-    dao.sign_out(get_jwt_identity())
+    dao.sign_out(g.user_id)
     return resp(RespMsg.success)
 
 
@@ -219,7 +219,7 @@ def sign_out():
 @custom_jwt()
 def sign_out_off():
     """取消销号"""
-    dao.sign_out_off(get_jwt_identity())
+    dao.sign_out_off(g.user_id)
     return resp(RespMsg.success)
 
 
@@ -250,4 +250,4 @@ def unset_black(black: UserId):
 @custom_jwt()
 def black_list():
     """我的拉黑"""
-    return resp([u.model_dump(include={'id', 'nickname'}) for u in dao.black_list(get_jwt_identity())])
+    return resp([u.model_dump(include={'id', 'nickname'}) for u in dao.black_list(g.user_id)])
