@@ -247,7 +247,7 @@ def add_like(like: FlagId):
 @args_parse(FlagId)
 @custom_jwt()
 def delete_like(delete_: FlagId):
-    """取消收藏"""
+    """取消点赞"""
     user_id = g.user_id
     is_like = dao.is_like(user_id, delete_.id)
     if is_like:
