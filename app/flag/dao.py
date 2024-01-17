@@ -105,7 +105,7 @@ class FlagDao(Dao):
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def is_like(self, user_id: UUID, flag_id: UUID) -> Optional[bool]:
-        sql = f'select exist(like_users, {user_id}) where flag_id=:flag_id'
+        sql = f"select exist(like_users, '{user_id}') where flag_id=:flag_id"
         return self.execute(sql, flag_id=flag_id)
 
     def get_fav(self, user_id: UUID) -> List[OpenFlag]:
