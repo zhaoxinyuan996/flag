@@ -97,6 +97,7 @@ class UserDao(Dao):
     def exist_black_list(self, user_id: UUID, black_id: UUID) -> Optional[int]:
         sql = ('select exists (select 1 from black_list where user_id=:user_id and black_id=:black_id) '
                'or not exists(select 1 from users where id=:user_id)')
+        print(self.text(sql, user_id=user_id, black_id=black_id))
         return self.execute(sql, user_id=user_id, black_id=black_id)
 
     def wechat_exist(self, open_id: str) -> Optional[UUID]:
