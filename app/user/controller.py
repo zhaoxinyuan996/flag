@@ -118,7 +118,7 @@ def user_info(query: QueryUser):
     if query.id:
         # 判断是否在黑名单中
         if dao.exist_black_list(query.id, user_id):
-            return resp(RespMsg.user_in_black_list)
+            return resp(RespMsg.user_not_exist)
         res = dao.other_user_info(query.id, user_id)
         if not res:
             return resp(RespMsg.user_not_exist)
