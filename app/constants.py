@@ -2,6 +2,16 @@ from enum import EnumMeta, Enum
 from typing import Union
 
 
+class PictureStorage:
+    __slots__ = ('filename', 'data', 'suffix')
+
+    def __init__(self, filename: str, data: bytes):
+        self.filename = filename
+        self.suffix = self.filename.rsplit('.', 1)[-1]
+        self.data = data
+
+
+
 class FlagApp:
     version: tuple = (1, 0, 0)
 
