@@ -43,6 +43,7 @@ class OtherUser(Model):
     id: UUID
     nickname: _NICKNAME
     is_man: Optional[int]
+    flag_num: int
 
     signature: _SIGNATURE
     avatar_name: str

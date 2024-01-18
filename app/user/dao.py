@@ -34,7 +34,7 @@ class UserDao(Dao):
         return self.execute(sql, user_id=user_id)
 
     def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
-        sql = ('select id, nickname, is_man, signature, avatar_name, '
+        sql = ('select id, nickname, is_man, signature, avatar_name, flag_num, '
                'vip_deadline, block_deadline, '
                'f.fans_id is not null is_follow, '
                'b.black_id is not null is_black '
