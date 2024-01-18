@@ -159,6 +159,10 @@ class FlagId(Model):
     id: UUID
 
 
+class FlagSinglePictureDone(FlagId):
+    file_list: List[str]
+
+
 class CommentId(Model):
     id: int
 
