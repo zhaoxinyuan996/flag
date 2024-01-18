@@ -166,7 +166,7 @@ def single_upload_picture_done(upload: FlagSinglePictureDone):
     all_pictures: List[Union[str, PictureStorage]] = []
     for url in upload.file_list:
         filename = url.rsplit('/', 1)[-1]
-        if url.startswith('http://cdn'):
+        if url.startswith('http://cdn') or url.startswith('https://cdn'):
             all_pictures.append(filename)
         else:
             if filename in pictures:
