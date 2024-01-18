@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import pickle
 from typing import List, Tuple, Union
 from uuid import UUID
 
@@ -8,7 +9,7 @@ from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, g
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout, \
-    StatisticsType
+    StatisticsType, PictureStorage
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
     AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId
 from app.user.controller import get_user_info
@@ -110,6 +111,51 @@ def update(flag: UpdateFlag):
     flag_p = dao.update(g.user_id, flag)
     if flag_p:
         return resp(RespMsg.success, flag_id=flag_p.id, pictures=flag_p.pictures)
+    return resp(RespMsg.success)
+
+
+@bp.route('/single-upload-picture', methods=['post'])
+@custom_jwt()
+def single_upload_picture():
+    """
+    针对于微信小程序这种傻逼东西单次上传
+    先存到redis，60s过期，然后调用single-upload-picture-done全拿出来上传
+    """
+    user_id = g.user_id
+    flag_id = UUID(request.form['id'])
+    file = request.files.get('file')
+    key = f'{user_id}-{flag_id}-file'
+    # 滥用
+    if redis_cli.llen(key) >= 9:
+        raise
+    storage: PictureStorage = PictureStorage(file.filename, file.stream.read())
+    redis_cli.rpush(key, pickle.dumps(storage))
+    redis_cli.expire(key, 600)
+    return resp(RespMsg.success)
+
+
+@bp.route('/single-upload-picture-done', methods=['post'])
+@custom_jwt()
+def single_upload_picture_done():
+    user_id = g.user_id
+    flag_id = UUID(request.form['id'])
+    key = f'{user_id}-{flag_id}-file'
+    # 删除旧的图片
+    old_names = dao.get_pictures(user_id, flag_id)
+    if old_names is None:
+        return resp(RespMsg.flag_not_exist)
+    for name in old_names:
+        up_oss.delete(FileType.flag_pic, name)
+
+    pictures: List[PictureStorage] = [pickle.loads(i) for i in redis_cli.lrange(key, 0, 9)]
+    # 构建名字
+    names = [f"{flag_id}-{up_oss.random_str()}.{p.suffix}" for p in pictures]
+    # 存表
+    dao.upload_pictures(user_id, flag_id, names)
+    for i in range(len(pictures)):
+        # 上传
+        up_oss.upload(FileType.flag_pic, names[i], pictures[i].data)
+    redis_cli.delete(key)
     return resp(RespMsg.success)
 
 
