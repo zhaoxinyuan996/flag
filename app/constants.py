@@ -2,16 +2,6 @@ from enum import EnumMeta, Enum
 from typing import Union
 
 
-class PictureStorage:
-    __slots__ = ('filename', 'data', 'suffix')
-
-    def __init__(self, filename: str, data: bytes):
-        self.filename = filename
-        self.suffix = self.filename.rsplit('.', 1)[-1]
-        self.data = data
-
-
-
 class FlagApp:
     version: tuple = (1, 0, 0)
 
@@ -29,6 +19,8 @@ class CacheTimeout:
     user_info = 7200
     # 区域标记数
     region_flag = 1800
+    # 标记信息
+    flag_info = 120
 
 
 class InEnumMeta(EnumMeta):

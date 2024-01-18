@@ -9,12 +9,12 @@ from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, g
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout, \
-    StatisticsType, PictureStorage
+    StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, OpenFlag
 from app.user.controller import get_user_info
 from app.user.typedef import UserInfo
-from app.util import args_parse, resp, custom_jwt, get_request_list
+from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
 from util.database import db, redis_cli
 from util.up_oss import up_oss
 
@@ -26,6 +26,18 @@ log = logging.getLogger(__name__)
 
 # with open(os.path.join(os.path.dirname(__file__), 'location_code.json'), encoding='utf-8') as city_file:
 #     location_code = json.loads(city_file.read())
+
+
+def get_flag_info(flag_id: UUID) -> OpenFlag:
+    key = f'flag-info-{flag_id}'
+    if value := redis_cli.get(key):
+        return pickle.loads(value)
+    else:
+        info: OpenFlag = dao.get_flag_by_flag(g.user_id, flag_id)
+        if not info:
+            raise AppError(RespMsg.flag_not_exist)
+        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
+        return info
 
 
 def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
@@ -124,38 +136,56 @@ def single_upload_picture():
     user_id = g.user_id
     flag_id = UUID(request.form['id'])
     file = request.files.get('file')
+    # 鉴权
+    flag_info: OpenFlag = get_flag_info(flag_id)
+    if flag_info.user_id is None:
+        raise
     key = f'{user_id}-{flag_id}-file'
     # 滥用
-    if redis_cli.llen(key) >= 9:
+    if redis_cli.scard(key) >= 9:
         raise
     storage: PictureStorage = PictureStorage(file.filename, file.stream.read())
-    redis_cli.rpush(key, pickle.dumps(storage))
+    redis_cli.sadd(key, pickle.dumps(storage))
     redis_cli.expire(key, 60)
     return resp(RespMsg.success)
 
 
 @bp.route('/single-upload-picture-done', methods=['post'])
-@args_parse(FlagId)
+@args_parse(FlagSinglePictureDone)
 @custom_jwt()
-def single_upload_picture_done(upload: FlagId):
+def single_upload_picture_done(upload: FlagSinglePictureDone):
     user_id = g.user_id
     flag_id = upload.id
     key = f'{user_id}-{flag_id}-file'
-    # 删除旧的图片
+
     old_names = dao.get_pictures(user_id, flag_id)
     if old_names is None:
         return resp(RespMsg.flag_not_exist)
-    for name in old_names:
-        up_oss.delete(FileType.flag_pic, name)
 
-    pictures: List[PictureStorage] = [pickle.loads(i) for i in redis_cli.lrange(key, 0, 9)]
+    pictures: PictureStorageSet = PictureStorageSet({pickle.loads(i) for i in redis_cli.smembers(key)})
+    all_pictures: List[Union[str, PictureStorage]] = []
+    for url in upload.file_list:
+        filename = url.rsplit('/', 1)[-1]
+        if url.startswith('http://cdn'):
+            all_pictures.append(filename)
+        else:
+            if filename in pictures:
+                all_pictures.append(pictures.pop(filename))
+
+    # 删除旧的图片
+    for name in old_names:
+        if name not in all_pictures:
+            up_oss.delete(FileType.flag_pic, name)
+
     # 构建名字
-    names = [f"{flag_id}-{up_oss.random_str()}.{p.suffix}" for p in pictures]
+    names = [f"{up_oss.random_str()}.{flag_id}.{p.suffix}"
+             if isinstance(p, PictureStorage) else p for p in all_pictures]
     # 存表
     dao.upload_pictures(user_id, flag_id, names)
-    for i in range(len(pictures)):
-        # 上传
-        up_oss.upload(FileType.flag_pic, names[i], pictures[i].data)
+    for i in range(len(all_pictures)):
+        if isinstance(all_pictures[i], PictureStorage):
+            # 上传
+            up_oss.upload(FileType.flag_pic, names[i], all_pictures[i].data)
     redis_cli.delete(key)
     return resp(RespMsg.success)
 
@@ -176,7 +206,7 @@ def upload_pictures():
     for name in old_names:
         up_oss.delete(FileType.flag_pic, name)
     # 构建名字
-    names = [f"{flag_id}-{up_oss.random_str()}.{p.filename.rsplit('.', 1)[1]}" for p in pictures]
+    names = [f"{up_oss.random_str()}.{flag_id}.{p.filename.rsplit('.', 1)[1]}" for p in pictures]
     # 存表
     dao.upload_pictures(user_id, flag_id, names)
     # 上传
