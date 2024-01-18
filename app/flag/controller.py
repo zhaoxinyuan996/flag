@@ -130,15 +130,16 @@ def single_upload_picture():
         raise
     storage: PictureStorage = PictureStorage(file.filename, file.stream.read())
     redis_cli.rpush(key, pickle.dumps(storage))
-    redis_cli.expire(key, 600)
+    redis_cli.expire(key, 60)
     return resp(RespMsg.success)
 
 
 @bp.route('/single-upload-picture-done', methods=['post'])
+@args_parse(FlagId)
 @custom_jwt()
-def single_upload_picture_done():
+def single_upload_picture_done(upload: FlagId):
     user_id = g.user_id
-    flag_id = UUID(request.form['id'])
+    flag_id = upload.id
     key = f'{user_id}-{flag_id}-file'
     # 删除旧的图片
     old_names = dao.get_pictures(user_id, flag_id)
