@@ -125,6 +125,17 @@ def single_upload_picture():
     return resp(RespMsg.success)
 
 
+@bp.route('/single-upload-picture-clear', methods=['post'])
+@args_parse(FlagId)
+@custom_jwt()
+def single_upload_picture_clear(clear: FlagId):
+    user_id = g.user_id
+    flag_id = clear.id
+    key = f'{user_id}-{flag_id}-file'
+    redis_cli.delete(key)
+    return resp(RespMsg.success)
+
+
 @bp.route('/single-upload-picture-done', methods=['post'])
 @args_parse(FlagSinglePictureDone)
 @custom_jwt()
