@@ -8,12 +8,11 @@ from uuid import UUID
 from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, g
-from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout, \
+from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
     StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
     AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
 from app.user.controller import get_user_info
-from app.user.typedef import User
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
 from util.database import db, redis_cli
 from util.up_oss import up_oss
