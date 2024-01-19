@@ -20,7 +20,7 @@ class UserDao(Dao):
     def sign_up(self, username: str, password: str, nickname: str) -> int:
         sql = ('insert into users (username, password, nickname, signature, create_time, vip_deadline, block_deadline, '
                "alive_deadline) values(:username, :password, :nickname, '说点想说的吧！', current_timestamp, "
-               f"{vip_deadline}', '-infinity', current_timestamp) "
+               f"{vip_deadline}, '-infinity', current_timestamp) "
                "returning id")
         return self.execute(sql, username=username, password=password, nickname=nickname or ran_nickname())
 
@@ -114,7 +114,7 @@ class UserDao(Dao):
         sql = ('insert into users (id, nickname, signature, avatar_name, create_time, vip_deadline, '
                'block_deadline, alive_deadline) values'
                f"(:user_id, :nickname, '说点想说的吧！', :avatar_name, "
-               f"current_timestamp, '{vip_deadline}', '-infinity', current_timestamp) returning id")
+               f"current_timestamp, {vip_deadline}, '-infinity', current_timestamp) returning id")
         return self.execute(sql, user_id=user_id, nickname=ran_nickname(), avatar_name=default_avatar_filename)
 
     def get_avatar_filename(self, user_id: UUID) -> Optional[str]:
