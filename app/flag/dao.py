@@ -1,9 +1,9 @@
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Any
 from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
-from app.flag.typedef import Flag, GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, FavFlag, OpenFlag, \
-    AddFlag, GetFlagByUser, FlagPictures, AddComment
+from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, OpenFlag, \
+    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment, Flag
 
 
 class FlagDao(Dao):
@@ -38,22 +38,40 @@ class FlagDao(Dao):
         return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
                             status=flag.status, ico_name=flag.ico_name)
 
-    def get_flag_by_flag(self, flag_id: UUID, user_id: UUID) -> Optional[Flag]:
-        sql = f'select {self.fields} from flag f where id=:flag_id and ({self.not_hide} or user_id=:user_id)'
-        return self.execute(sql, flag_id=flag_id, user_id=user_id)
+    def get_flag_info(self, user_id: UUID, flag_id: UUID) -> Optional[Flag]:
+        sql = 'select * from flag where id=:flag_id and user_id=:user_id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[Flag]:
+    def get_flag_by_flag(self, user_id: UUID, flag_id: UUID) -> Optional[OpenFlag]:
+        condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
+        sql = (f'select {self.fields}, '
+               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from flag f inner join flag_statistics s on f.id=s.flag_id '
+               f'where f.id=:flag_id and {condition} and s.flag_id=:flag_id')
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[OpenFlag]:
         if user_id:
             condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
         else:
             condition = ' user_id=:private_id '
-        sql = f'select {self.fields} from flag f where {condition} order by {get.order_by}'
+        sql = (f'select {self.fields}, '
+               f"exist(like_users, '{private_id}') is_like, exist(fav_users, '{private_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from flag f inner join flag_statistics s on f.id=s.flag_id '
+               f'where {condition} order by {get.order_by}')
+        print(self.text(sql, user_id=user_id, private_id=private_id))
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
-        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name from flag f inner join users u '
-               f'on f.user_id=u.id where '
-               f'(user_id=:user_id or {self.not_hide}) and type=:type '
+        condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
+        sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name, '
+               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from flag f inner join users u on f.user_id=u.id '
+               f'inner join flag_statistics s on f.id=s.flag_id '
+               f'where {condition} and type=:type '
                "and ST_Distance(ST_GeographyFromText(:location), "
                'ST_GeographyFromText(ST_AsText(f.location)))<:distance')
         return self.execute(sql, user_id=user_id, type=get.type, location=point(get.location), distance=get.distance)
@@ -89,19 +107,25 @@ class FlagDao(Dao):
         sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id, pictures'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def get_fav(self, user_id: UUID) -> List[FavFlag]:
-        sql = (f"select f.id, case when f.{self.anonymous} then null else f.user_id end user_id, "
-               f"{Dao.location('location')}, name, content, type, user_class, update_time, ico_name, "
-               'pictures, dead_line from fav left join flag f on fav.flag_id=f.id '
-               f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id)')
+    def is_like(self, user_id: UUID, flag_id: UUID) -> Optional[bool]:
+        sql = f"select exist(like_users, '{user_id}') from flag_statistics where flag_id=:flag_id"
+        return self.execute(sql, flag_id=flag_id)
+
+    def get_fav(self, user_id: UUID) -> List[OpenFlag]:
+        sql = (f'select {self.fields}, '
+               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f'like_num, fav_num, comment_num '
+               f'from fav left join flag f on fav.flag_id=f.id '
+               'left join flag_statistics s on fav.flag_id=s.flag_id '
+               f'where fav.user_id=:user_id and ({self.not_hide} or f.user_id=:user_id) order by fav.create_time')
         return self.execute(sql, user_id=user_id)
 
-    def add_fav(self, user_id: UUID, flag_id: UUID):
+    def add_fav(self, user_id: UUID, flag_id: UUID) -> Optional[UUID]:
         sql = ('insert into fav (user_id, flag_id, create_time)'
-               'values(:user_id,:flag_id,current_timestamp)')
+               'values(:user_id,:flag_id,current_timestamp) returning flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def delete_fav(self, user_id: UUID, flag_id: UUID) -> Optional[str]:
+    def delete_fav(self, user_id: UUID, flag_id: UUID) -> Optional[UUID]:
         sql = 'delete from fav where user_id=:user_id and flag_id=:flag_id returning flag_id'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
@@ -130,21 +154,63 @@ class FlagDao(Dao):
                'on u.id=s1.user_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id, parent_id=parent_id)
 
-    # 应该是不需要这种形式
-    # 等客户端做到的时候再改
     def get_comment(self, user_id: UUID, flag_id: UUID) -> List[CommentResp]:
         sql = ('select u.id=:user_id owner, u.id user_id, u.avatar_name, u.nickname, '
                'c.id, c.like_num, c.content, c.parent_id, c.distance, c.create_time from flag_comment c '
                'inner join users u on c.user_id=u.id where c.flag_id=:flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def delete_comment(self, comment_id: int, user_id: UUID):
-        sql = 'delete from flag_comment where (id=:comment_id or parent_id=:comment_id) and user_id=:user_id'
-        self.execute(sql, comment_id=comment_id, user_id=user_id)
+    def delete_comment(self, user_id: UUID, comment_id: int) -> Optional[DeleteComment]:
+        sql = ('delete from flag_comment where (id=:comment_id or parent_id=:comment_id) and user_id=:user_id '
+               'returning flag_id, parent_id')
+        return self.execute(sql, comment_id=comment_id, user_id=user_id)
 
     def flag_is_open(self, user_id: UUID, flag_id: UUID) -> int:
         sql = f'select exists(select 1 from flag where id=:flag_id and ({self.not_hide} or user_id=:user_id))'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
+    def insert_statistics(self, flag_id: UUID):
+        sql = ('insert into flag_statistics (flag_id, like_users, fav_users, comment_users, update_time) '
+               "values(:flag_id, '', '', '', current_timestamp)")
+        self.execute(sql, flag_id=flag_id)
+
+    def delete_statistics(self, flag_id: UUID):
+        """flag_id只能是接口返回值，防止接口注入，因为没有限定user_id"""
+        sql = 'delete from flag_statistics where flag_id=:flag_id'
+        self.execute(sql, flag_id=flag_id)
+
+    def set_statistics(self,
+                       flag_id: UUID,
+                       like_users_up: List[UUID] = (),
+                       like_users_down: List[UUID] = (),
+                       fav_users_up: List[UUID] = (),
+                       fav_users_down: List[UUID] = (),
+                       comment_users_up: List[UUID] = (),
+                       comment_users_down: List[UUID] = (),
+                       ):
+        loop = []
+        for uuid in like_users_up:
+            loop.append(f" like_users['{uuid}']=current_timestamp::text ")
+        for uuid in like_users_down:
+            loop.append(f''' like_users = delete(like_users, '{uuid}') ''')
+        for uuid in fav_users_up:
+            loop.append(f" fav_users['{uuid}']=current_timestamp::text ")
+        for uuid in fav_users_down:
+            loop.append(f''' fav_users = delete(fav_users, '{uuid}') ''')
+        for uuid in comment_users_up:
+            loop.append(f" comment_users['{uuid}']=current_timestamp::text ")
+        for uuid in comment_users_down:
+            loop.append(f''' comment_users = delete(comment_users, '{uuid}') ''')
+        like_diff = len(like_users_up) - len(like_users_down)
+        fav_diff = len(fav_users_up) - len(fav_users_down)
+        comment_diff = len(comment_users_up) - len(comment_users_down)
+        sql = (f"update flag_statistics set {','.join(loop)} "
+               f", like_num={like_diff}+like_num "
+               f", fav_num={fav_diff}+fav_num "
+               f", comment_num={comment_diff}+comment_num "
+               f"where flag_id=:flag_id")
+        print(sql)
+        self.execute(sql, flag_id=flag_id)
 
 
 dao: FlagDao = FlagDao()

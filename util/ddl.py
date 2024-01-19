@@ -24,7 +24,7 @@ block_deadline timestamp,
 alive_deadline timestamp,
 belong text,
 local text,
-extend1 text,
+hidden bool not null default false,
 extend2 text,
 extend3 text
 );
@@ -81,7 +81,7 @@ user_id uuid not null,
 location geometry(geometry,4326) not null,
 name text not null,
 content text not null,
-type int,
+type int not null default 0,
 status int not null,
 user_class int not null,
 create_time timestamp not null,
@@ -95,7 +95,6 @@ unique(location)
 
 
 CREATE INDEX type_index ON flag(type);
-CREATE INDEX is_open_index ON flag(is_open);
 create index flag_user_id_index on flag using hash(user_id);
 CREATE INDEX flag_location_index ON flag USING GIST (location);
 '''
@@ -176,4 +175,18 @@ title text not null,
 content text not null,
 create_time timestamp
 )
+'''
+
+# 标记统计表，hstore类型一定不能为null，null会导致所有函数的返回值都是null而非布尔值，可以为空字串
+'''
+create table flag_statistics(
+flag_id uuid not null primary key,
+like_users hstore not null default '',
+fav_users hstore not null default '',
+comment_users hstore not null default '',
+like_num int not null default 0,
+fav_num int not null default 0,
+comment_num int not null default 0,
+update_time timestamp not null
+);
 '''
