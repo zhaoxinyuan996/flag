@@ -144,13 +144,6 @@ def single_upload_picture_done(upload: FlagSinglePictureDone):
     flag_id = upload.id
     key = f'{user_id}-{flag_id}-file'
 
-    user_info = get_user_info()
-
-    if user_info.user_class == UserClass.vip or user_info.user_class == UserClass.hidden:
-        assert len(upload.file_list) <= 9
-    else:
-        assert len(upload.file_list) <= 1
-
     old_names = dao.get_pictures(user_id, flag_id)
     if old_names is None:
         return resp(RespMsg.flag_not_exist)
