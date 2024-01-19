@@ -11,9 +11,9 @@ from flask import Blueprint, request, g
 from app.constants import UserClass, flag_picture_size, FileType, allow_picture_type, RespMsg, CacheTimeout, \
     StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, OpenFlag
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
 from app.user.controller import get_user_info
-from app.user.typedef import UserInfo
+from app.user.typedef import User
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
 from util.database import db, redis_cli
 from util.up_oss import up_oss
@@ -28,12 +28,12 @@ log = logging.getLogger(__name__)
 #     location_code = json.loads(city_file.read())
 
 
-def get_flag_info(flag_id: UUID) -> OpenFlag:
+def get_flag_info(flag_id: UUID) -> Flag:
     key = f'flag-info-{flag_id}'
     if value := redis_cli.get(key):
         return pickle.loads(value)
     else:
-        info: OpenFlag = dao.get_flag_by_flag(g.user_id, flag_id)
+        info: Flag = dao.get_flag_info(g.user_id, flag_id)
         if not info:
             raise AppError(RespMsg.flag_not_exist)
         redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
@@ -64,34 +64,6 @@ def set_statistics(user_id: Union[UUID, List[UUID]], flag_id: UUID, key: str):
         user_id = (user_id, )
     assert getattr(StatisticsType, key)
     dao.set_statistics(flag_id, **{key: user_id})
-
-
-def _build(content: str) -> List[Tuple[str, bytes]]:
-    """集成各种校验，返回图片"""
-    pictures = request.files.getlist('pic')
-    info: UserInfo = get_user_info()
-    if info.user_class == UserClass.normal and len(pictures) > 1:
-        return resp(RespMsg.too_large)
-    elif info.user_class == UserClass.vip and len(pictures) > 9:
-        return resp(RespMsg.too_large)
-    length = 0
-    datas = []
-    for p in pictures:
-        _, suffix = p.filename.rsplit('.', 1)
-        if suffix not in allow_picture_type:
-            return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
-
-        data = p.stream.read()
-        length += len(data)
-        if length > flag_picture_size:
-            return resp(RespMsg.too_large)
-
-        datas.append((suffix, data))
-
-    if len(content) > 300:
-        return resp(RespMsg.too_long)
-
-    return datas
 
 
 @bp.route('/add', methods=['post'])
@@ -137,14 +109,17 @@ def single_upload_picture():
     flag_id = UUID(request.form['id'])
     file = request.files.get('file')
     # 鉴权
-    flag_info: OpenFlag = get_flag_info(flag_id)
+    flag_info: Flag = get_flag_info(flag_id)
     if flag_info.user_id is None:
         raise
     key = f'{user_id}-{flag_id}-file'
     # 滥用
     if redis_cli.scard(key) >= 9:
         raise
-    storage: PictureStorage = PictureStorage(file.filename, file.stream.read())
+    b = file.stream.read()
+    if len(b) > flag_picture_size:
+        return resp(RespMsg.too_large, -1)
+    storage: PictureStorage = PictureStorage(file.filename, b)
     redis_cli.sadd(key, pickle.dumps(storage))
     redis_cli.expire(key, 60)
     return resp(RespMsg.success)
