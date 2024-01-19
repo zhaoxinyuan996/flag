@@ -8,8 +8,8 @@ import requests
 from app.user.dao import dao
 from flask import Blueprint, request, g
 from app.util import resp, custom_jwt, args_parse, refresh_user, dcs_lock
-from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout
-from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, UserInfo, QueryUser
+from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout, UserClass
+from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, QueryUser, User
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
 from common.job import DelayJob
@@ -27,7 +27,7 @@ password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 log = logging.getLogger(__name__)
 
 
-def get_user_info() -> UserInfo:
+def get_user_info() -> User:
     # 加一层g？
     # 加一层redis
     user_id = g.user_id
@@ -35,7 +35,7 @@ def get_user_info() -> UserInfo:
     if value := redis_cli.get(key):
         return pickle.loads(value)
     else:
-        info: UserInfo = dao.get_info(user_id)
+        info: User = dao.get_user_info(user_id)
         if not info:
             raise AppError(RespMsg.user_not_exist)
         redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.user_info)
@@ -139,7 +139,7 @@ def upload_avatar():
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
     b = request.files['file'].stream.read()
-    if len(b) > user_picture_size:
+    if get_user_info().user_class is not UserClass.hidden and len(b) > user_picture_size:
         return resp(RespMsg.too_large, -1)
 
     # 生成文件名

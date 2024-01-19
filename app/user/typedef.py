@@ -12,31 +12,65 @@ _SIGNATURE = constr(max_length=50)
 
 
 class User(Model):
-    id: Optional[UUID]
+    id: UUID
 
-    nickname: Optional[_NICKNAME]
+    nickname: _NICKNAME
     username: Optional[str]
     password: Optional[str]
     phone: Optional[int]
     is_man: Optional[int]
-    flag_num: Optional[int]
-
-    wechat_id: Optional[str]
-
     signature: Optional[_SIGNATURE]
     avatar_name: Optional[str]
     bg_avatar_name: Optional[str]
-    create_time: Optional[datetime]
+    flag_num: int
+    create_time: datetime
     vip_deadline: Optional[datetime]
     block_deadline: Optional[datetime]
     alive_deadline: Optional[datetime]
 
     belong: Optional[str]
     local: Optional[str]
+    hidden: bool
+
+    @property
+    def user_class(self) -> int:
+        if self.block_deadline and self.block_deadline > datetime.now():
+            return UserClass.block
+        elif self.hidden is True:
+            return UserClass.hidden
+        elif self.vip_deadline and self.vip_deadline > datetime.now():
+            return UserClass.vip
+        else:
+            return UserClass.normal
+
+    @property
+    def allow_flag_num(self) -> int:
+        if self.user_class == UserClass.block:
+            return 0
+        elif self.user_class == UserClass.normal:
+            return FlagNum.normal_user - self.flag_num
+        elif self.user_class == UserClass.vip:
+            return FlagNum.vip_user - self.flag_num
+        elif self.user_class == UserClass.hidden:
+            return FlagNum.hidden_user - self.flag_num
+        raise UndefinedError('user class')
 
 
 class QueryUser(Model):
     id: Optional[UUID]
+
+
+class OverviewUser(Model):
+    id: UUID
+    nickname: _NICKNAME
+    is_man: Optional[int]
+    flag_num: int
+
+    signature: _SIGNATURE
+    avatar_name: str
+
+    vip_deadline: datetime
+    block_deadline: datetime
 
 
 class OtherUser(Model):
@@ -53,35 +87,6 @@ class OtherUser(Model):
 
     is_follow: int
     is_black: int
-
-
-class UserInfo(Model):
-    flag_num: int
-    create_time: datetime
-    vip_deadline: datetime
-    block_deadline: datetime
-    alive_deadline: datetime
-
-    @property
-    def user_class(self) -> int:
-        if self.block_deadline > datetime.now():
-            return UserClass.block
-        elif self.vip_deadline > datetime.now():
-            return UserClass.vip
-        else:
-            return UserClass.normal
-
-    @property
-    def allow_flag_num(self) -> int:
-        if self.user_class == UserClass.block:
-            return 0
-        elif self.user_class == UserClass.normal:
-            return FlagNum.normal_user - self.flag_num
-        elif self.user_class == UserClass.vip:
-            return FlagNum.vip_user - self.flag_num
-        elif self.user_class == UserClass.hidden:
-            return FlagNum.hidden_user - self.flag_num
-        raise UndefinedError('user class')
 
 
 class SignUp(User):

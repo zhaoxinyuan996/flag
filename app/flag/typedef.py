@@ -24,18 +24,18 @@ anonymous   hide
 
 
 class Flag(Model):
-    id: Optional[UUID]
-    user_id: Optional[UUID]
-    location: Optional[LOCATION]
-    name: Optional[str]
-    content: Optional[_FLAG_CONTENT]
-    type: Optional[_TYPE]
-    status: Optional[_STATUS]
-    user_class: Optional[int]
-    create_time: Optional[datetime]
-    update_time: Optional[datetime]
-    pictures: Optional[List[str]]
-    ico_name: Optional[str]
+    id: UUID
+    user_id: UUID
+    location: LOCATION
+    name: str
+    content: _FLAG_CONTENT
+    type: _TYPE
+    status: _STATUS
+    user_class: int
+    create_time: datetime
+    update_time: datetime
+    pictures: List[str]
+    ico_name: str
     dead_line: Optional[datetime]
 
     @property
@@ -71,12 +71,12 @@ class AddFlag(Model):
 
     @property
     def dead_line(self):
-        if self.temp:
-            user_class = get_user_info().user_class
-            if user_class is UserClass.vip:
-                return datetime.now() + timedelta(hours=24)
-            elif user_class is UserClass.normal:
+        user_class = get_user_info().user_class
+        if self.temp and user_class is False:
+            if user_class is UserClass.normal:
                 return datetime.now() + timedelta(hours=1)
+            elif user_class is UserClass.vip:
+                return datetime.now() + timedelta(hours=24)
             else:
                 return '-infinity'
         else:

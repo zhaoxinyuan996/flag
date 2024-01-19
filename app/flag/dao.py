@@ -3,7 +3,7 @@ from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, OpenFlag, \
-    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment
+    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment, Flag
 
 
 class FlagDao(Dao):
@@ -38,6 +38,10 @@ class FlagDao(Dao):
         return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
                             status=flag.status, ico_name=flag.ico_name)
 
+    def get_flag_info(self, user_id: UUID, flag_id: UUID) -> Optional[Flag]:
+        sql = 'select * from flag where id=:flag_id and user_id=:user_id'
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
+
     def get_flag_by_flag(self, user_id: UUID, flag_id: UUID) -> Optional[OpenFlag]:
         condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
         sql = (f'select {self.fields}, '
@@ -45,8 +49,7 @@ class FlagDao(Dao):
                f'like_num, fav_num, comment_num '
                f'from flag f inner join flag_statistics s on f.id=s.flag_id '
                f'where f.id=:flag_id and {condition} and s.flag_id=:flag_id')
-        print(self.text(sql, flag_id=flag_id, user_id=user_id))
-        return self.execute(sql, flag_id=flag_id, user_id=user_id)
+        return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[OpenFlag]:
         if user_id:

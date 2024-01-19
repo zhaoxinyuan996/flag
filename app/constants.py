@@ -33,14 +33,10 @@ class InEnum(Enum, metaclass=EnumMeta):
 
 
 allow_picture_type = frozenset(('jpg', 'png', 'gif', 'jpeg'))
-# 用户头像限制1m
-user_picture_size = 3 * 1024 * 1024
-# flag图片一共大小限制10m
-flag_picture_size = 10 * 1024 * 1024
-# 头像，如果小于这个值，就不做缩略图
-user_picture_thumbnail_size = 50 * 1024
-# flag
-flag_picture_thumbnail_size = 100 * 1024
+# 用户头像限制2m
+user_picture_size = 2 * 1024 * 1024
+# flag单张限制3m
+flag_picture_size = 3 * 1024 * 1024
 
 
 class JwtConfig:
