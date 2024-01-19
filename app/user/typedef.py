@@ -12,60 +12,33 @@ _SIGNATURE = constr(max_length=50)
 
 
 class User(Model):
-    id: Optional[UUID]
+    id: UUID
 
-    nickname: Optional[_NICKNAME]
+    nickname: _NICKNAME
     username: Optional[str]
     password: Optional[str]
     phone: Optional[int]
     is_man: Optional[int]
-    flag_num: Optional[int]
-
-    wechat_id: Optional[str]
-
     signature: Optional[_SIGNATURE]
     avatar_name: Optional[str]
     bg_avatar_name: Optional[str]
-    create_time: Optional[datetime]
+    flag_num: int
+    create_time: datetime
     vip_deadline: Optional[datetime]
     block_deadline: Optional[datetime]
     alive_deadline: Optional[datetime]
 
     belong: Optional[str]
     local: Optional[str]
-
-
-class QueryUser(Model):
-    id: Optional[UUID]
-
-
-class OtherUser(Model):
-    id: UUID
-    nickname: _NICKNAME
-    is_man: Optional[int]
-
-    signature: _SIGNATURE
-    avatar_name: str
-
-    vip_deadline: datetime
-    block_deadline: datetime
-
-    is_follow: int
-    is_black: int
-
-
-class UserInfo(Model):
-    flag_num: int
-    create_time: datetime
-    vip_deadline: datetime
-    block_deadline: datetime
-    alive_deadline: datetime
+    hidden: bool
 
     @property
     def user_class(self) -> int:
-        if self.block_deadline > datetime.now():
+        if self.block_deadline and self.block_deadline > datetime.now():
             return UserClass.block
-        elif self.vip_deadline > datetime.now():
+        elif self.hidden is True:
+            return UserClass.hidden
+        elif self.vip_deadline and self.vip_deadline > datetime.now():
             return UserClass.vip
         else:
             return UserClass.normal
@@ -81,6 +54,39 @@ class UserInfo(Model):
         elif self.user_class == UserClass.hidden:
             return FlagNum.hidden_user - self.flag_num
         raise UndefinedError('user class')
+
+
+class QueryUser(Model):
+    id: Optional[UUID]
+
+
+class OverviewUser(Model):
+    id: UUID
+    nickname: _NICKNAME
+    is_man: Optional[int]
+    flag_num: int
+
+    signature: _SIGNATURE
+    avatar_name: str
+
+    vip_deadline: datetime
+    block_deadline: datetime
+
+
+class OtherUser(Model):
+    id: UUID
+    nickname: _NICKNAME
+    is_man: Optional[int]
+    flag_num: int
+
+    signature: _SIGNATURE
+    avatar_name: str
+
+    vip_deadline: datetime
+    block_deadline: datetime
+
+    is_follow: int
+    is_black: int
 
 
 class SignUp(User):

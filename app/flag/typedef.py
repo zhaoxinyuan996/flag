@@ -1,7 +1,9 @@
 from uuid import UUID
 from datetime import datetime, timedelta
+
+from flask import g
 from pydantic import constr, confloat, conint
-from typing import Optional, List, Union
+from typing import Optional, List
 from app.base_typedef import LOCATION
 from app.constants import UserClass
 from app.user.controller import get_user_info
@@ -22,18 +24,18 @@ anonymous   hide
 
 
 class Flag(Model):
-    id: Optional[UUID]
-    user_id: Optional[UUID]
-    location: Optional[LOCATION]
-    name: Optional[str]
-    content: Optional[_FLAG_CONTENT]
-    type: Optional[_TYPE]
-    status: Optional[_STATUS]
-    user_class: Optional[int]
-    create_time: Optional[datetime]
-    update_time: Optional[datetime]
-    pictures: Optional[List[str]]
-    ico_name: Optional[str]
+    id: UUID
+    user_id: UUID
+    location: LOCATION
+    name: str
+    content: _FLAG_CONTENT
+    type: _TYPE
+    status: _STATUS
+    user_class: int
+    create_time: datetime
+    update_time: datetime
+    pictures: List[str]
+    ico_name: str
     dead_line: Optional[datetime]
 
     @property
@@ -69,12 +71,12 @@ class AddFlag(Model):
 
     @property
     def dead_line(self):
-        if self.temp:
-            user_class = get_user_info().user_class
-            if user_class is UserClass.vip:
-                return datetime.now() + timedelta(hours=24)
-            elif user_class is UserClass.normal:
+        user_class = get_user_info().user_class
+        if self.temp and user_class is False:
+            if user_class is UserClass.normal:
                 return datetime.now() + timedelta(hours=1)
+            elif user_class is UserClass.vip:
+                return datetime.now() + timedelta(hours=24)
             else:
                 return '-infinity'
         else:
@@ -138,30 +140,27 @@ class OpenFlag(Flag):
     user_id: Optional[UUID]
     nickname: Optional[str]
     avatar_name: Optional[str]
+    # 相关
+    is_like: bool = False
+    is_fav: bool = False
+    # 统计
+    like_num: int = 0
+    fav_num: int = 0
+    comment_num: int = 0
 
     def __init__(self, **kwargs):
         # 匿名标记
-        if kwargs['status'] & 0b10 == 0b10:
+        if kwargs['status'] & 0b10 == 0b10 and kwargs['user_id'] != g.user_id:
             kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_name'] = None
         super().__init__(**kwargs)
 
 
-class FavFlag(Model):
-    id: Optional[UUID]
-    user_id: Optional[UUID]
-    location: Optional[LOCATION]
-    name: Optional[str]
-    content: Optional[_FLAG_CONTENT]
-    type: Optional[_TYPE]
-    user_class: Optional[int]
-    update_time: Optional[datetime]
-    ico_name: Optional[str]
-    pictures: Optional[List[str]]
-    dead_line: Optional[datetime]
-
-
 class FlagId(Model):
     id: UUID
+
+
+class FlagSinglePictureDone(FlagId):
+    file_list: List[str]
 
 
 class CommentId(Model):
@@ -178,6 +177,11 @@ class AddComment(Model):
     parent_id: Optional[int]
 
 
+class DeleteComment(Model):
+    flag_id: UUID
+    parent_id: Optional[int]
+
+
 class CommentResp(Model):
     id: int
     owner: bool
@@ -189,3 +193,11 @@ class CommentResp(Model):
     parent_id: Optional[int]
     distance: Optional[int]
     create_time: datetime
+
+
+class FlagStatistics(Model):
+    flag_id: Optional[UUID]
+    like_users: Optional[dict]
+    fav_users: Optional[dict]
+    comment_users: Optional[dict]
+    update_time: datetime

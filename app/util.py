@@ -7,7 +7,7 @@ from uuid import UUID
 
 import requests
 from pydantic import BaseModel
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Union, Set, Dict
 from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request, get_jwt, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
@@ -21,6 +21,35 @@ from flask import request, jsonify, current_app, g
 
 
 log = logging.getLogger(__name__)
+
+
+class PictureStorage:
+    __slots__ = ('filename', 'data', 'suffix')
+
+    def __init__(self, filename: str, data: Union[str, bytes]):
+        self.filename = filename
+        self.suffix = self.filename.rsplit('.', 1)[-1]
+        self.data = data
+
+
+class PictureStorageSet:
+    __slots__ = ('__set', '__mapping')
+
+    def __init__(self, set_: Set[PictureStorage]):
+        self.__set: Set[PictureStorage] = set_
+        self.__mapping: Dict[str, PictureStorage] = {i.filename: i for i in set_}
+
+    def __contains__(self, filename: str):
+        if filename in self.__mapping:
+            return True
+        else:
+            return False
+
+    def pop(self, filename: str):
+        """没设锁，这玩意应该不会竞争"""
+        v = self.__mapping.pop(filename)
+        self.__set.remove(v)
+        return v
 
 
 def _refresh_user(user_id: UUID, ip: str):

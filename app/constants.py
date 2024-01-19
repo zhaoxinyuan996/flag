@@ -19,6 +19,8 @@ class CacheTimeout:
     user_info = 7200
     # 区域标记数
     region_flag = 1800
+    # 标记信息
+    flag_info = 120
 
 
 class InEnumMeta(EnumMeta):
@@ -31,14 +33,10 @@ class InEnum(Enum, metaclass=EnumMeta):
 
 
 allow_picture_type = frozenset(('jpg', 'png', 'gif', 'jpeg'))
-# 用户头像限制1m
-user_picture_size = 3 * 1024 * 1024
-# flag图片一共大小限制10m
-flag_picture_size = 10 * 1024 * 1024
-# 头像，如果小于这个值，就不做缩略图
-user_picture_thumbnail_size = 50 * 1024
-# flag
-flag_picture_thumbnail_size = 100 * 1024
+# 用户头像限制2m
+user_picture_size = 2 * 1024 * 1024
+# flag单张限制3m
+flag_picture_size = 3 * 1024 * 1024
 
 
 class JwtConfig:
@@ -51,6 +49,15 @@ class JwtConfig:
 class FileType:
     head_pic = 'head-pic'
     flag_pic = 'flag-pic'
+
+
+class StatisticsType:
+    like_users_up = 'like_users_up'
+    like_users_down = 'like_users_down'
+    fav_users_up = 'fav_users_up'
+    fav_users_down = 'fav_users_down'
+    comment_users_up = 'comment_users_up'
+    comment_users_down = 'comment_users_down'
 
 
 class FlagNum:
@@ -86,10 +93,6 @@ class RespMsg:
     user_sign_up_password_weak = Message({
         'zh': '密码强度不足',
         'en': 'password is too weak'
-    })
-    user_in_black_list = Message({
-        'zh': '你在黑名单中',
-        'en': 'you are in black list',
     })
     user_not_exist = Message({
         'zh': '用户不存在',

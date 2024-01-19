@@ -4,9 +4,10 @@ from typing import Tuple, Optional, List
 from uuid import UUID
 
 from app.base_dao import Dao
-from app.user.typedef import User, UserInfo, OtherUser
+from app.user.typedef import User, OtherUser, OverviewUser
 
-vip_deadline = 'infinity'
+# vip_deadline = 'infinity'
+vip_deadline = 'null'
 default_avatar_filename = 'default.png'
 
 
@@ -27,14 +28,14 @@ class UserDao(Dao):
         sql = 'select id, password from users where username=:username'
         return self.execute(sql, username=username)
 
-    def user_info(self, user_id: UUID) -> Optional[User]:
-        sql = ('select id, username, nickname, avatar_name, signature, '
-               'vip_deadline, block_deadline, belong, local '
+    def self_user_info(self, user_id: UUID) -> Optional[User]:
+        sql = ('select id, username, nickname, phone, is_man, avatar_name, signature, '
+               'flag_num, create_time, vip_deadline, block_deadline, belong, local, belong, hidden '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
-        sql = ('select id, nickname, is_man, signature, avatar_name, '
+        sql = ('select id, nickname, is_man, signature, avatar_name, flag_num, '
                'vip_deadline, block_deadline, '
                'f.fans_id is not null is_follow, '
                'b.black_id is not null is_black '
@@ -51,14 +52,14 @@ class UserDao(Dao):
         sql = 'delete from follow where fans_id=:fans_id and star_id=:star_id'
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
-    def follow_star(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline '
+    def follow_star(self, user_id: UUID) -> List[OverviewUser]:
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline, u.flag_num '
                'from follow f inner join users u '
                'on f.star_id=u.id where f.fans_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
-    def follow_fans(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline '
+    def follow_fans(self, user_id: UUID) -> List[OverviewUser]:
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline, u.flag_num '
                'from follow f inner join users u '
                'on f.fans_id=u.id where f.star_id=:user_id')
         return self.execute(sql, user_id=user_id)
@@ -71,8 +72,8 @@ class UserDao(Dao):
         sql = "delete from sign_out_users where user_id=:user_id"
         return self.execute(sql, user_id=user_id)
 
-    def get_info(self, user_id: UUID) -> Optional[UserInfo]:
-        sql = 'select flag_num, create_time, vip_deadline, block_deadline, alive_deadline from users where id=:user_id'
+    def get_user_info(self, user_id: UUID) -> Optional[User]:
+        sql = 'select * from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
     def set_black(self, user_id: UUID, black_id: UUID):
@@ -85,8 +86,9 @@ class UserDao(Dao):
         sql = 'delete from black_list where user_id=:user_id and black_id=:black_id'
         return self.execute(sql, user_id=user_id, black_id=black_id)
 
-    def black_list(self, user_id: UUID) -> List[User]:
-        sql = ('select u.id, u.nickname from black_list b inner join users u '
+    def black_list(self, user_id: UUID) -> List[OverviewUser]:
+        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline, u.flag_num '
+               'from black_list b inner join users u '
                'on b.black_id=u.id where b.user_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
