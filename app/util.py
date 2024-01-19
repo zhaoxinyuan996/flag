@@ -58,25 +58,33 @@ def _refresh_user(user_id: UUID, ip: str):
 
     def _get_local():
         try:
-            data = requests.get(api + ip).json()
+            data = requests.get(api % ip).json()
             log.info(str(data))
-            return data[key]
+            for key in keys:
+                data = data[key]
+            return data
         except requests.RequestException:
+            return None
+        except Exception as e:
+            log.exception(e)
             return None
 
     if ip == '127.0.0.1':
         return
 
     apis = (
-        ('http://ip.360.cn/IPQuery/ipquery?ip=', 'data'),
-        ('http://www.ip508.com/ip?q=', 'addr'),
-        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=', 'addr'),
+        ('https://www.ip.cn/api/index?type=1&ip=%s', ('address', )),
+        ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('location', )),
+        ('https://searchplugin.csdn.net/api/v1/ip/get?ip=123.123.123.123', ('data', 'address')),
+        ('https://whois.pconline.com.cn/ipJson.jsp?ip=115.192.86.141&json=true', ('addr', )),
+        ('http://ip-api.com/json/%s?lang=zh-CN', ('regionName', )),
+        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=%s', ('addr', )),
     )
     idx_list = [i for i in range(len(apis))]
     random.shuffle(idx_list)
     local = ''
     for i in idx_list:
-        api, key = apis[i]
+        api, keys = apis[i]
         local = _get_local()
         if local:
             break
