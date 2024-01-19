@@ -125,7 +125,7 @@ def user_info(query: QueryUser):
         return resp(res.model_dump())
     # 查看自己的信息
     else:
-        res = dao.user_info(user_id)
+        res = dao.self_user_info(user_id)
         return resp(res.model_dump())
 
 

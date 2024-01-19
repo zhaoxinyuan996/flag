@@ -28,9 +28,9 @@ class UserDao(Dao):
         sql = 'select id, password from users where username=:username'
         return self.execute(sql, username=username)
 
-    def user_info(self, user_id: UUID) -> Optional[User]:
-        sql = ('select id, username, nickname, avatar_name, signature, '
-               'vip_deadline, block_deadline, belong, local '
+    def self_user_info(self, user_id: UUID) -> Optional[User]:
+        sql = ('select id, username, nickname, phone, is_man, avatar_name, signature, '
+               'flag_num, create_time, vip_deadline, block_deadline, belong, local, belong, hidden '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 
@@ -99,7 +99,6 @@ class UserDao(Dao):
     def exist_black_list(self, user_id: UUID, black_id: UUID) -> Optional[int]:
         sql = ('select exists (select 1 from black_list where user_id=:user_id and black_id=:black_id) '
                'or not exists(select 1 from users where id=:user_id)')
-        print(self.text(sql, user_id=user_id, black_id=black_id))
         return self.execute(sql, user_id=user_id, black_id=black_id)
 
     def wechat_exist(self, open_id: str) -> Optional[UUID]:
