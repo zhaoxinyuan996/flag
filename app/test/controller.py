@@ -7,6 +7,15 @@ module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 
+# 没有任何io的测试接口
+@bp.route('/call-cpu', methods=['get'])
+@custom_jwt()
+def call_cpu():
+    user_id = g.user_id
+    return resp(user_id)
+
+
+# 简单查表的测试接口
 @bp.route('/user-info', methods=['get'])
 @custom_jwt()
 def user_info():
