@@ -15,6 +15,8 @@ flag_app = FlagApp()
 
 class CacheTimeout:
     """缓存超时时间"""
+    # jwt
+    jwt = 300
     # 用户信息
     user_info = 7200
     # 区域标记数

@@ -1,16 +1,17 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
+import pickle
 import random
 import requests
+import gzip
 from datetime import datetime
 from functools import wraps, partial
 from uuid import UUID
-
 from pydantic import BaseModel
 from typing import Any, Optional, Callable, Union, Set, Dict
 from flask.json.provider import DefaultJSONProvider
-from flask_jwt_extended import verify_jwt_in_request, get_jwt, create_access_token
+from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic_core import PydanticUndefined
 from werkzeug.middleware.profiler import ProfilerMiddleware
@@ -18,9 +19,9 @@ from werkzeug.middleware.profiler import ProfilerMiddleware
 from common.job import DelayJob
 from util.database import db, redis_cli
 from .base_dao import build_model, base_dao
-from .constants import Message, JwtConfig, DCSLockError
+from .constants import Message, JwtConfig, DCSLockError, CacheTimeout
 from util.config import dev
-from flask import request, jsonify, current_app, g
+from flask import request, jsonify, g
 
 log = logging.getLogger(__name__)
 
@@ -137,9 +138,20 @@ def custom_jwt(
     def wrapper(fn):
         @wraps(fn)
         def decorator(*args, **kwargs):
-            verify_jwt_in_request(optional, fresh, refresh, locations, verify_type, skip_revocation_check)
+            # 服务器每个校验2.5ms
+            # verify_jwt_in_request(optional, fresh, refresh, locations, verify_type, skip_revocation_check)
 
-            jwt_info = get_jwt()
+            # jwt做缓存
+            encode_jwt: str = request.headers.get('Authorization', '').rsplit(' ')[-1]
+            jwt_key = f'jwt-{encode_jwt}'
+            jwt_info = redis_cli.get(jwt_key)
+            if jwt_info is None:
+                jwt_info = verify_jwt_in_request(
+                    optional, fresh, refresh, locations, verify_type, skip_revocation_check)[1]
+                redis_cli.set(jwt_key, pickle.dumps(jwt_info), ex=CacheTimeout.jwt)
+            else:
+                jwt_info = pickle.loads(jwt_info)
+
             user_id: UUID = UUID(jwt_info['sub'])
             g.user_id = user_id
             if datetime.timestamp(datetime.now()) + JwtConfig.re_jwt_timestamp > jwt_info['exp']:
@@ -147,10 +159,9 @@ def custom_jwt(
                 DelayJob.job_queue.put(refresh_user(user_id))
                 g.access_token = create_access_token(identity=user_id)
 
-            return current_app.ensure_sync(fn)(*args, **kwargs)
-
+            return fn(*args, **kwargs)
+            # return current_app.ensure_sync(fn)(*args, **kwargs)
         return decorator
-
     return wrapper
 
 
