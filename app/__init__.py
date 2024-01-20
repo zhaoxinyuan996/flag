@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 from psycopg2 import errors as pg_errors
-from flask import Flask, Response, send_file
+from flask import Flask, Response
 from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
@@ -9,8 +9,8 @@ from sqlalchemy import exc
 from util.log import setup_logger
 from . import test, user, flag, message
 from app.constants import RespMsg, AppError, JwtConfig
-from app.util import resp, JSONProvider
-from util.config import redis_uri, db_uri, dev
+from app.util import resp, JSONProvider, werkzeug_profile
+from util.config import redis_uri, db_uri, dev, config
 from util.database import db, redis_cli
 
 
@@ -105,12 +105,11 @@ JWTManager(app)
 # flask
 init(app)
 
-
-@app.route('/')
-def root():
-    import os
-    return send_file(os.path.join(os.path.dirname(__file__), 'index.html'))
-
+if config.get('profile'):
+    print('=============== ========== ================')
+    print('=============== 性能分析开启 ================')
+    print('=============== ========== ================')
+    werkzeug_profile(app)
 
 if __name__ == '__main__':
     print(app.url_map)
