@@ -1,11 +1,11 @@
 """web的一些注入解析等小功能"""
 import logging
 import random
+import requests
 from datetime import datetime
 from functools import wraps, partial
 from uuid import UUID
 
-import requests
 from pydantic import BaseModel
 from typing import Any, Optional, Callable, Union, Set, Dict
 from flask.json.provider import DefaultJSONProvider
@@ -75,8 +75,8 @@ def _refresh_user(user_id: UUID, ip: str):
     apis = (
         ('https://www.ip.cn/api/index?type=1&ip=%s', ('address', )),
         ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('location', )),
-        ('https://searchplugin.csdn.net/api/v1/ip/get?ip=123.123.123.123', ('data', 'address')),
-        ('https://whois.pconline.com.cn/ipJson.jsp?ip=115.192.86.141&json=true', ('addr', )),
+        ('https://searchplugin.csdn.net/api/v1/ip/get?ip=%s', ('data', 'address')),
+        ('https://whois.pconline.com.cn/ipJson.jsp?ip=%s&json=true', ('addr', )),
         ('http://ip-api.com/json/%s?lang=zh-CN', ('regionName', )),
         ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=%s', ('addr', )),
     )

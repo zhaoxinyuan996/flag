@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 from psycopg2 import errors as pg_errors
-from flask import Flask, Response, send_file
+from flask import Flask, Response
 from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
@@ -79,8 +79,10 @@ def create_app() -> Flask:
     # _app.config['SQLALCHEMY_ECHO'] = True
     _app.config["JWT_SECRET_KEY"] = "yes?"  # 设置 jwt 的秘钥
     if dev:
+        _app.config["DEBUG"] = True
         _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=99999)
     else:
+        _app.config["DEBUG"] = False
         # 过期时间
         _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_access_minutes)
     # 设置刷新JWT过期时间
@@ -104,12 +106,6 @@ db.init_app(app)
 JWTManager(app)
 # flask
 init(app)
-
-
-@app.route('/')
-def root():
-    import os
-    return send_file(os.path.join(os.path.dirname(__file__), 'index.html'))
 
 
 if __name__ == '__main__':
