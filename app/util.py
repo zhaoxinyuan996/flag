@@ -1,4 +1,5 @@
 """web的一些注入解析等小功能"""
+import os
 import logging
 import random
 import requests
@@ -12,13 +13,14 @@ from flask.json.provider import DefaultJSONProvider
 from flask_jwt_extended import verify_jwt_in_request, get_jwt, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic_core import PydanticUndefined
+from werkzeug.middleware.profiler import ProfilerMiddleware
+
 from common.job import DelayJob
 from util.database import db, redis_cli
 from .base_dao import build_model, base_dao
 from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
 from flask import request, jsonify, current_app, g
-
 
 log = logging.getLogger(__name__)
 
@@ -73,12 +75,12 @@ def _refresh_user(user_id: UUID, ip: str):
         return
 
     apis = (
-        ('https://www.ip.cn/api/index?type=1&ip=%s', ('address', )),
-        ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('location', )),
+        ('https://www.ip.cn/api/index?type=1&ip=%s', ('address',)),
+        ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('location',)),
         ('https://searchplugin.csdn.net/api/v1/ip/get?ip=%s', ('data', 'address')),
-        ('https://whois.pconline.com.cn/ipJson.jsp?ip=%s&json=true', ('addr', )),
-        ('http://ip-api.com/json/%s?lang=zh-CN', ('regionName', )),
-        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=%s', ('addr', )),
+        ('https://whois.pconline.com.cn/ipJson.jsp?ip=%s&json=true', ('addr',)),
+        ('http://ip-api.com/json/%s?lang=zh-CN', ('regionName',)),
+        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=%s', ('addr',)),
     )
     idx_list = [i for i in range(len(apis))]
     random.shuffle(idx_list)
@@ -101,6 +103,7 @@ def refresh_user(user_id: UUID):
 
 def dcs_lock(key: str, ex=5000):
     """分布式锁"""
+
     def f1(func: Callable):
         @wraps(func)
         def f2(*args, **kwargs):
@@ -113,7 +116,9 @@ def dcs_lock(key: str, ex=5000):
                 return func(*args, **kwargs)
             finally:
                 redis_cli.delete(k)
+
         return f2
+
     return f1
 
 
@@ -206,3 +211,10 @@ class Model(BaseModel):
     def check(self, *args):
         for a in args:
             assert getattr(self, a)
+
+
+def werkzeug_profile(app):
+    app.wsgi_app = ProfilerMiddleware(
+        app.wsgi_app,
+        profile_dir=os.path.join(os.path.dirname(__file__), os.pardir, 'test', 'output'),
+        filename_format="{time:.0f}-{method}-{path}-{elapsed:.0f}ms.prof")

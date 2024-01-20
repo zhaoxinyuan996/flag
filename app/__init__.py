@@ -9,8 +9,8 @@ from sqlalchemy import exc
 from util.log import setup_logger
 from . import test, user, flag, message
 from app.constants import RespMsg, AppError, JwtConfig
-from app.util import resp, JSONProvider
-from util.config import redis_uri, db_uri, dev
+from app.util import resp, JSONProvider, werkzeug_profile
+from util.config import redis_uri, db_uri, dev, config
 from util.database import db, redis_cli
 
 
@@ -79,10 +79,8 @@ def create_app() -> Flask:
     # _app.config['SQLALCHEMY_ECHO'] = True
     _app.config["JWT_SECRET_KEY"] = "yes?"  # 设置 jwt 的秘钥
     if dev:
-        _app.config["DEBUG"] = True
         _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=99999)
     else:
-        _app.config["DEBUG"] = False
         # 过期时间
         _app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_access_minutes)
     # 设置刷新JWT过期时间
@@ -107,6 +105,11 @@ JWTManager(app)
 # flask
 init(app)
 
+if config.get('profile'):
+    print('=============== ========== ================')
+    print('=============== 性能分析开启 ================')
+    print('=============== ========== ================')
+    werkzeug_profile(app)
 
 if __name__ == '__main__':
     print(app.url_map)
