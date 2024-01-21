@@ -23,7 +23,17 @@ anonymous   hide
 '''
 
 
-class Flag(Model):
+class FlagMixin:
+    @property
+    def hide(self) -> bool:
+        return bool(self.status & 0b1)
+
+    @property
+    def anonymous(self) -> bool:
+        return bool(self.status & 0b10)
+
+
+class Flag(Model, FlagMixin):
     id: UUID
     user_id: UUID
     location: LOCATION
@@ -37,14 +47,6 @@ class Flag(Model):
     pictures: List[str]
     ico_name: str
     dead_line: Optional[datetime]
-
-    @property
-    def hide(self) -> bool:
-        return bool(self.status & 0b1)
-
-    @property
-    def anonymous(self) -> bool:
-        return bool(self.status & 0b10)
 
 
 class Comment(Model):
@@ -109,7 +111,7 @@ class GetFlagByOrder(Order):
 
 
 class GetFlagByUser(GetFlagByOrder):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
 
 
 class GetFlagByFlag(Model):
@@ -135,11 +137,24 @@ class FlagRegion(Model):
     location: LOCATION
 
 
-class OpenFlag(Model):
+class OpenFlag(Model, FlagMixin):
     # 匿名或者删除
     user_id: Optional[UUID] = None
     nickname: Optional[str] = None
     avatar_name: Optional[str] = None
+
+    id: UUID = None
+    location: LOCATION
+    name: str
+    content: _FLAG_CONTENT
+    type: _TYPE
+    status: _STATUS
+    user_class: int
+    create_time: datetime
+    update_time: datetime
+    pictures: List[str]
+    ico_name: str
+    dead_line: Optional[datetime]
     # 相关
     is_like: bool = False
     is_fav: bool = False
@@ -150,9 +165,10 @@ class OpenFlag(Model):
 
     def __init__(self, **kwargs):
         # 匿名标记
-        if kwargs['status'] & 0b10 == 0b10 and kwargs['user_id'] != g.user_id:
-            kwargs['user_id'] = kwargs['nickname'] = kwargs['avatar_name'] = None
         super().__init__(**kwargs)
+        if kwargs['user_id'] != g.user_id and self.hide:
+            self.user_id = self.nickname = self.avatar_name = None
+
 
 
 class FlagId(Model):
