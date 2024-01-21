@@ -57,7 +57,7 @@ class User(Model):
 
 
 class QueryUser(Model):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
 
 
 class OverviewUser(Model):

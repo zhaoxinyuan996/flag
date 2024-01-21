@@ -109,7 +109,7 @@ class GetFlagByOrder(Order):
 
 
 class GetFlagByUser(GetFlagByOrder):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
 
 
 class GetFlagByFlag(Model):
