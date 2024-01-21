@@ -1,17 +1,16 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
-import pickle
 import random
 import requests
-import gzip
 from datetime import datetime
 from functools import wraps, partial
 from uuid import UUID
+import ujson
+from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
 from typing import Any, Optional, Callable, Union, Set, Dict
-from flask.json.provider import DefaultJSONProvider
-from flask_jwt_extended import verify_jwt_in_request, create_access_token
+from flask_jwt_extended import verify_jwt_in_request, create_access_token, get_jwt
 from flask_jwt_extended.view_decorators import LocationType
 from pydantic_core import PydanticUndefined
 from werkzeug.middleware.profiler import ProfilerMiddleware
@@ -19,9 +18,9 @@ from werkzeug.middleware.profiler import ProfilerMiddleware
 from common.job import DelayJob
 from util.database import db, redis_cli
 from .base_dao import build_model, base_dao
-from .constants import Message, JwtConfig, DCSLockError, CacheTimeout
+from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
-from flask import request, jsonify, g
+from flask import request, jsonify, g, Response
 
 log = logging.getLogger(__name__)
 
@@ -139,18 +138,18 @@ def custom_jwt(
         @wraps(fn)
         def decorator(*args, **kwargs):
             # 服务器每个校验2.5ms
-            # verify_jwt_in_request(optional, fresh, refresh, locations, verify_type, skip_revocation_check)
+            jwt_info = verify_jwt_in_request(optional, fresh, refresh, locations, verify_type, skip_revocation_check)[1]
 
             # jwt做缓存
-            encode_jwt: str = request.headers.get('Authorization', '').rsplit(' ')[-1]
-            jwt_key = f'jwt-{encode_jwt}'
-            jwt_info = redis_cli.get(jwt_key)
-            if jwt_info is None:
-                jwt_info = verify_jwt_in_request(
-                    optional, fresh, refresh, locations, verify_type, skip_revocation_check)[1]
-                redis_cli.set(jwt_key, pickle.dumps(jwt_info), ex=CacheTimeout.jwt)
-            else:
-                jwt_info = pickle.loads(jwt_info)
+            # encode_jwt: str = request.headers.get('Authorization', '').rsplit(' ')[-1]
+            # jwt_key = f'jwt-{encode_jwt}'
+            # jwt_info = redis_cli.get(jwt_key)
+            # if jwt_info is None:
+            #     jwt_info = verify_jwt_in_request(
+            #         optional, fresh, refresh, locations, verify_type, skip_revocation_check)[1]
+            #     redis_cli.set(jwt_key, pickle.dumps(jwt_info), ex=CacheTimeout.jwt)
+            # else:
+            #     jwt_info = pickle.loads(jwt_info)
 
             user_id: UUID = UUID(jwt_info['sub'])
             g.user_id = user_id
@@ -199,14 +198,35 @@ def get_request_list(body) -> dict:
     return d
 
 
+# class JSONProvider(DefaultJSONProvider):
+#     def default(self, obj):
+#         if isinstance(obj, datetime):
+#             return obj.strftime('%Y-%m-%d %H:%M:%S')
+#         elif isinstance(obj, BaseModel):
+#             return obj.model_dump_json()
+#
+#         return super().default(obj)
+
+
 class JSONProvider(DefaultJSONProvider):
-    def default(self, obj):
+    """用ujson重写"""
+
+    @staticmethod
+    def default(obj):
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
-        elif isinstance(obj, BaseModel):
-            return obj.model_dump_json()
+        elif isinstance(obj, UUID):
+            return str(obj)
+        raise TypeError('ignore type')
 
-        return super().default(obj)
+    def dumps(self, obj: Any, **kwargs: Any) -> str:
+        return ujson.dumps(obj, default=self.default)
+
+    def loads(self, s: Union[str, bytes], **kwargs: Any) -> Any:
+        return ujson.loads(s)
+
+    def response(self, obj: Any) -> Response:
+        return self._app.response_class(self.dumps(obj))
 
 
 class Model(BaseModel):
