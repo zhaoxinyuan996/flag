@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List
 from uuid import UUID
 
 from app.base_dao import Dao
-from app.user.typedef import User, OtherUser, OverviewUser
+from app.user.typedef import User, OtherUser, OverviewUser, SelfUser
 
 # vip_deadline = 'infinity'
 vip_deadline = 'current_timestamp'
@@ -30,9 +30,9 @@ class UserDao(Dao):
         sql = 'select id, password from users where username=:username'
         return self.execute(sql, username=username)
 
-    def self_user_info(self, user_id: UUID) -> Optional[User]:
-        sql = ('select id, username, nickname, phone, is_man, avatar_name, signature, '
-               'flag_num, create_time, vip_deadline, block_deadline, belong, local, belong, hidden '
+    def self_user_info(self, user_id: UUID) -> Optional[SelfUser]:
+        sql = ('select id, username, nickname, phone, is_man, avatar_name, bg_avatar_name, signature, '
+               'flag_num, create_time, alive_deadline, vip_deadline, block_deadline, belong, local, belong, hidden '
                'from users where id=:user_id')
         return self.execute(sql, user_id=user_id)
 

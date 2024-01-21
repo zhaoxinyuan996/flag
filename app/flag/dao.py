@@ -53,9 +53,9 @@ class FlagDao(Dao):
 
     def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[OpenFlag]:
         if user_id:
-            condition = f' {self.not_hide} and not {self.anonymous} and user_id=:user_id '
+            condition = f' ({self.not_hide} and not {self.anonymous} and user_id=:user_id) '
         else:
-            condition = ' user_id=:private_id '
+            condition = ' (user_id=:private_id) '
         sql = (f'select {self.fields}, '
                f"exist(like_users, '{private_id}') is_like, exist(fav_users, '{private_id}') is_fav, "
                f'like_num, fav_num, comment_num '
