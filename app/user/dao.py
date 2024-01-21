@@ -7,7 +7,7 @@ from app.base_dao import Dao
 from app.user.typedef import User, OtherUser, OverviewUser
 
 # vip_deadline = 'infinity'
-vip_deadline = 'null'
+vip_deadline = 'current_timestamp'
 default_avatar_filename = 'default.png'
 
 
