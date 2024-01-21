@@ -153,7 +153,8 @@ def custom_jwt(
 
             user_id: UUID = UUID(jwt_info['sub'])
             g.user_id = user_id
-            if datetime.timestamp(datetime.now()) + JwtConfig.re_jwt_timestamp > jwt_info['exp']:
+            # jwt的超时时间的一半，重新颁发jwt和记录alive时间
+            if datetime.timestamp(datetime.now()) + (JwtConfig.jwt_access_minutes / 2) > jwt_info['exp']:
                 # 添加ip的时候启动这个
                 DelayJob.job_queue.put(refresh_user(user_id))
                 g.access_token = create_access_token(identity=user_id)
