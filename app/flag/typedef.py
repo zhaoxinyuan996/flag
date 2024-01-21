@@ -192,6 +192,7 @@ class AddComment(Model):
     # 子评论属性
     parent_id: Optional[int] = None
 
+
 class DeleteComment(Model):
     flag_id: UUID
     parent_id: Optional[int] = None
