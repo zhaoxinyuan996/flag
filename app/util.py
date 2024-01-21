@@ -231,18 +231,19 @@ class JSONProvider(DefaultJSONProvider):
 
 
 class Model(BaseModel):
-    def __init__(self, **kwargs):
-        cls = type(self)
-        kw = {}
-        for cls in cls.__mro__[:-3]:
-            kw.update({k: None for k in cls.__annotations__ if cls.model_fields[k].default is PydanticUndefined})
-        kw.update(kwargs)
-        # [kw.pop(i) for i in args if kw[i] is None]
-        super().__init__(**kw)
-
-    def check(self, *args):
-        for a in args:
-            assert getattr(self, a)
+    """为了规范还是用回原来的方法"""
+    # def __init__(self, **kwargs):
+    #     cls = type(self)
+    #     kw = {}
+    #     for cls in cls.__mro__[:-3]:
+    #         kw.update({k: None for k in cls.__annotations__ if cls.model_fields[k].default is PydanticUndefined})
+    #     kw.update(kwargs)
+    #     # [kw.pop(i) for i in args if kw[i] is None]
+    #     super().__init__(**kw)
+    #
+    # def check(self, *args):
+    #     for a in args:
+    #         assert getattr(self, a)
 
 
 def werkzeug_profile(app):
