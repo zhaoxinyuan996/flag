@@ -89,7 +89,7 @@ class OtherUser(Model):
     is_black: int
 
 
-class SignUp(User):
+class SignUp(Model):
     username: str
     password: str
 
@@ -98,7 +98,7 @@ class SignWechat(Model):
     code: str
 
 
-class SignIn(User):
+class SignIn(Model):
     username: str
     password: str
 
