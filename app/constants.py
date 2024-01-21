@@ -42,10 +42,10 @@ flag_picture_size = 3 * 1024 * 1024
 
 
 class JwtConfig:
+    # 半天
     jwt_access_minutes = 720
+    # 暂时没用上
     jwt_refresh_minutes = 1440
-    # 每次请求判断，快超时就重新发一个
-    re_jwt_timestamp = 600
 
 
 class FileType:
