@@ -188,14 +188,13 @@ class AddComment(Model):
     content: _COMMENT_CONTENT
     location: LOCATION
     show_distance: bool
-    distance: Optional[int]
+    distance: Optional[int] = None
     # 子评论属性
-    parent_id: Optional[int]
-
+    parent_id: Optional[int] = None
 
 class DeleteComment(Model):
     flag_id: UUID
-    parent_id: Optional[int]
+    parent_id: Optional[int] = None
 
 
 class CommentResp(Model):
