@@ -82,7 +82,7 @@ class OtherUser(Model):
     signature: _SIGNATURE
     avatar_name: str
 
-    vip_deadline: datetime
+    vip_deadline: Optional[datetime]
     block_deadline: datetime
 
     is_follow: int

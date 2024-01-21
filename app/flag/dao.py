@@ -61,7 +61,6 @@ class FlagDao(Dao):
                f'like_num, fav_num, comment_num '
                f'from flag f inner join flag_statistics s on f.id=s.flag_id '
                f'where {condition} order by {get.order_by}')
-        print(self.text(sql, user_id=user_id, private_id=private_id))
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
@@ -209,7 +208,6 @@ class FlagDao(Dao):
                f", fav_num={fav_diff}+fav_num "
                f", comment_num={comment_diff}+comment_num "
                f"where flag_id=:flag_id")
-        print(sql)
         self.execute(sql, flag_id=flag_id)
 
 
