@@ -18,7 +18,7 @@ class User(Model):
     username: Optional[str]
     password: Optional[str]
     phone: Optional[int]
-    is_man: Optional[int]
+    is_man: Optional[bool]
     signature: Optional[_SIGNATURE]
     avatar_name: Optional[str]
     bg_avatar_name: Optional[str]
@@ -63,7 +63,7 @@ class QueryUser(Model):
 class OverviewUser(Model):
     id: UUID
     nickname: _NICKNAME
-    is_man: Optional[int]
+    is_man: Optional[bool]
     flag_num: int
 
     signature: _SIGNATURE
@@ -76,7 +76,7 @@ class OverviewUser(Model):
 class OtherUser(Model):
     id: UUID
     nickname: _NICKNAME
-    is_man: Optional[int]
+    is_man: Optional[bool]
     flag_num: int
 
     signature: _SIGNATURE
@@ -89,7 +89,7 @@ class OtherUser(Model):
     is_black: int
 
 
-class SignUp(User):
+class SignUp(Model):
     username: str
     password: str
 
@@ -98,7 +98,7 @@ class SignWechat(Model):
     code: str
 
 
-class SignIn(User):
+class SignIn(Model):
     username: str
     password: str
 
@@ -108,10 +108,10 @@ class UserId(Model):
 
 
 class SetUserinfo(Model):
-    nickname: Optional[_NICKNAME]
-    is_man: Optional[bool]
-    phone: Optional[conint(lt=19999999999)]
-    signature: Optional[_SIGNATURE]
+    nickname: Optional[_NICKNAME] = None
+    is_man: Optional[bool] = None
+    phone: Optional[conint(lt=19999999999)] = None
+    signature: Optional[_SIGNATURE] = None
 
 
 if __name__ == '__main__':

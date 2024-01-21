@@ -10,6 +10,8 @@ from app.user.typedef import User, OtherUser, OverviewUser
 vip_deadline = 'current_timestamp'
 default_avatar_filename = 'default.png'
 
+overview_fields = 'u.id, u.nickname, u.signature, u.avatar_name, u.is_man, u.vip_deadline, u.block_deadline, u.flag_num'
+
 
 def ran_nickname():
     """8位随机字符当昵称"""
@@ -35,7 +37,7 @@ class UserDao(Dao):
         return self.execute(sql, user_id=user_id)
 
     def other_user_info(self, other_id: UUID, user_id: UUID) -> Optional[OtherUser]:
-        sql = ('select id, nickname, is_man, signature, avatar_name, flag_num, '
+        sql = ('select id, nickname, is_man, signature, avatar_name, flag_num, is_man, '
                'vip_deadline, block_deadline, '
                'f.fans_id is not null is_follow, '
                'b.black_id is not null is_black '
@@ -53,13 +55,13 @@ class UserDao(Dao):
         return self.execute(sql, fans_id=fans_id, star_id=star_id)
 
     def follow_star(self, user_id: UUID) -> List[OverviewUser]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline, u.flag_num '
+        sql = (f'select {overview_fields} '
                'from follow f inner join users u '
                'on f.star_id=u.id where f.fans_id=:user_id')
         return self.execute(sql, user_id=user_id)
 
     def follow_fans(self, user_id: UUID) -> List[OverviewUser]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline, u.flag_num '
+        sql = (f'select {overview_fields} '
                'from follow f inner join users u '
                'on f.fans_id=u.id where f.star_id=:user_id')
         return self.execute(sql, user_id=user_id)
@@ -87,7 +89,7 @@ class UserDao(Dao):
         return self.execute(sql, user_id=user_id, black_id=black_id)
 
     def black_list(self, user_id: UUID) -> List[OverviewUser]:
-        sql = ('select u.id, u.nickname, u.signature, u.avatar_name, u.vip_deadline, u.block_deadline, u.flag_num '
+        sql = (f'select {overview_fields} '
                'from black_list b inner join users u '
                'on b.black_id=u.id where b.user_id=:user_id')
         return self.execute(sql, user_id=user_id)
