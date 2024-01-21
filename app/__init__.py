@@ -31,6 +31,9 @@ g.user_id
 
 g.access_token
 需要刷新的话就赋值
+
+g.db_commit
+是否需要在after时提交
 '''
 e_code = 500
 
@@ -42,11 +45,12 @@ def init(_app: Flask):
         g.language = 'zh'
         g.user_id = None
         g.access_token = None
+        g.db_commit = False
 
     @_app.after_request
     def after(response: Response):
         # 基于请求的自动提交
-        if response.status_code == 200:
+        if response.status_code == 200 and g.db_commit:
             db.session.commit()
         return response
 
