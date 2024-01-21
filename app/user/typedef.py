@@ -103,7 +103,7 @@ class SignIn(User):
     password: str
 
 
-class UserId(User):
+class UserId(Model):
     id: UUID
 
 
