@@ -135,11 +135,11 @@ class FlagRegion(Model):
     location: LOCATION
 
 
-class OpenFlag(Flag):
+class OpenFlag(Model):
     # 匿名或者删除
-    user_id: Optional[UUID]
-    nickname: Optional[str]
-    avatar_name: Optional[str]
+    user_id: Optional[UUID] = None
+    nickname: Optional[str] = None
+    avatar_name: Optional[str] = None
     # 相关
     is_like: bool = False
     is_fav: bool = False
