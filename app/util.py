@@ -10,9 +10,8 @@ import ujson
 from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
 from typing import Any, Optional, Callable, Union, Set, Dict
-from flask_jwt_extended import verify_jwt_in_request, create_access_token, get_jwt
+from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
-from pydantic_core import PydanticUndefined
 from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from common.job import DelayJob

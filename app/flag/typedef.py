@@ -4,11 +4,10 @@ from datetime import datetime, timedelta
 from flask import g
 from pydantic import constr, confloat, conint
 from typing import Optional, List
-from app.base_typedef import LOCATION
+from app.base_typedef import LOCATION, Order, OrderField
 from app.constants import UserClass
 from app.user.controller import get_user_info
 from app.util import Model
-from typedef import Order, OrderField
 
 _TYPE = conint(ge=0, le=1)
 _STATUS = conint(ge=0, le=3)
@@ -170,7 +169,6 @@ class OpenFlag(Model, FlagMixin):
             self.user_id = self.nickname = self.avatar_name = None
 
 
-
 class FlagId(Model):
     id: UUID
 
@@ -191,6 +189,7 @@ class AddComment(Model):
     distance: Optional[int] = None
     # 子评论属性
     parent_id: Optional[int] = None
+
 
 class DeleteComment(Model):
     flag_id: UUID
