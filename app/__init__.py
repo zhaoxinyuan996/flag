@@ -1,4 +1,5 @@
 import logging
+
 from datetime import timedelta
 from psycopg2 import errors as pg_errors
 from flask import Flask, Response
@@ -6,7 +7,6 @@ from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
 from sqlalchemy import exc
-from util.log import setup_logger
 from . import test, user, flag, message
 from app.constants import RespMsg, AppError, JwtConfig
 from app.util import resp, JSONProvider, werkzeug_profile
@@ -14,7 +14,6 @@ from util.config import redis_uri, db_uri, dev, config
 from util.database import db, redis_cli
 
 
-setup_logger()
 log = logging.getLogger(__name__)
 
 
