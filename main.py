@@ -1,18 +1,14 @@
 import threading
-from util.log import setup_logger
+from util.config import dev
+from app import app
+from common.job import DelayJob
 
-setup_logger()
+
+if not dev:
+    threading.Thread(target=DelayJob.run).start()
 
 
 if __name__ == '__main__':
-    from app import app
-    from common.job import DelayJob
-    from util.config import dev, config
-
-    if not dev:
-        threading.Thread(target=DelayJob.run).start()
     if dev:
         print('dev')
         app.run()
-    else:
-        app.run(host=config['web']['ip'], port=config['web']['port'])
