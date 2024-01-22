@@ -16,3 +16,4 @@ upyun==2.5.5
 uwsgi==2.0.23
 locust==2.20.1
 ujson==5.9.0
+uwsgidecorators==1.1.0
