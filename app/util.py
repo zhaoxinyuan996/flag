@@ -75,7 +75,8 @@ def _refresh_user(user_id: UUID, ip: str):
 
     apis = (
         ('https://www.ip.cn/api/index?type=1&ip=%s', ('address',)),
-        ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('addr',)),
+        # 百度这个嵌套了一个数组，先不用这个
+        # ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('addr',)),
         ('https://searchplugin.csdn.net/api/v1/ip/get?ip=%s', ('data', 'address')),
         ('https://whois.pconline.com.cn/ipJson.jsp?ip=%s&json=true', ('addr',)),
         ('http://ip-api.com/json/%s?lang=zh-CN', ('regionName',)),
