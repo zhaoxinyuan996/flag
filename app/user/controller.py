@@ -99,14 +99,14 @@ def sign_up_wechat(wechat: SignWechat):
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
-# @bp.route('/refresh-jwt', methods=['post'])
-# @custom_jwt()
-# def refresh_jwt():
-#     """更新jwt，要结合更多的redis？用户状态控制？"""
-#     user_id = g.user_id
-#     access_token = create_access_token(identity=user_id)
-#     DelayJob.job_queue.put(refresh_user(user_id))
-#     return resp(RespMsg.user_sign_in_success, access_token=access_token)
+@bp.route('/refresh-jwt', methods=['post'])
+@custom_jwt()
+def refresh_jwt():
+    """暂时当作测试接口"""
+    user_id = g.user_id
+    access_token = create_access_token(identity=user_id)
+    DelayJob.job_queue.put(refresh_user(user_id))
+    return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 
 @bp.route('/user-info', methods=['post'])
