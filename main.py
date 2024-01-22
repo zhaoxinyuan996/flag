@@ -4,7 +4,7 @@ from app import app
 from common.job import DelayJob
 
 
-if dev:
+if not dev:
     threading.Thread(target=DelayJob.run).start()
 
 
