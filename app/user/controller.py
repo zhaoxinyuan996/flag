@@ -105,7 +105,9 @@ def refresh_jwt():
     """暂时当作测试接口"""
     user_id = g.user_id
     access_token = create_access_token(identity=user_id)
+    print(1)
     DelayJob.job_queue.put(refresh_user(user_id))
+    print(2)
     return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 

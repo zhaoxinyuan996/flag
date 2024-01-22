@@ -1,5 +1,5 @@
 import logging
-from queue import Queue
+from multiprocessing import Queue
 
 
 log = logging.getLogger(__name__)
@@ -8,10 +8,13 @@ log = logging.getLogger(__name__)
 class DelayJob:
     job_queue = Queue()
 
-    @classmethod
-    def run(cls):
+    @staticmethod
+    def run(q: Queue):
+        print(0)
         while True:
-            func = cls.job_queue.get()
+            print(111)
+            func = q.get()
+            print(222)
             log.info(f'run delay job: {func}')
             try:
                 func()
