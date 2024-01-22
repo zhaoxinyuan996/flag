@@ -1,13 +1,11 @@
-import multiprocessing
-import platform
-
+import threading
 from util.config import dev
 from app import app
 from common.job import DelayJob
 
 
-if not dev:
-    multiprocessing.Process(target=DelayJob.run, args=(DelayJob.job_queue, )).start()
+if dev:
+    threading.Thread(target=DelayJob.run).start()
 
 
 if __name__ == '__main__':
