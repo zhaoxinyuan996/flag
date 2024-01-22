@@ -4,11 +4,10 @@ from datetime import datetime, timedelta
 from flask import g
 from pydantic import constr, confloat, conint
 from typing import Optional, List
-from app.base_typedef import LOCATION
+from app.base_typedef import LOCATION, Order, OrderField
 from app.constants import UserClass
 from app.user.controller import get_user_info
 from app.util import Model
-from typedef import Order, OrderField
 
 _TYPE = conint(ge=0, le=1)
 _STATUS = conint(ge=0, le=3)
@@ -168,7 +167,6 @@ class OpenFlag(Model, FlagMixin):
         super().__init__(**kwargs)
         if kwargs['user_id'] != g.user_id and self.hide:
             self.user_id = self.nickname = self.avatar_name = None
-
 
 
 class FlagId(Model):
