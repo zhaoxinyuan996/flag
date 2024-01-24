@@ -2,12 +2,10 @@ import logging
 
 from flask import g
 from flask_redis import FlaskRedis
-from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine.result import RMKeyView
 from typing import Tuple, Any, Optional
 from contextlib import contextmanager
-from util.config import config
 from flask_sqlalchemy import SQLAlchemy as _SQLAlchemy
 
 
@@ -44,21 +42,17 @@ db = SQLAlchemy()
 
 if __name__ == '__main__':
     from typing import *
-
-    class Test(BaseModel):
+    from util.config import db_uri
+    from sqlalchemy import create_engine
+    from sqlmodel import SQLModel
+    engine = create_engine(db_uri)
+    class Test(SQLModel):
         f1: int
         f2: str
         f3: List[int]
         f4: List[str]
         f5: dict
 
-    from app import app
-    with app.app_context():
 
-        insert = '''insert into test values(1,'2', array[1,2,3], array['2', '3', '4'], '{"test": 123}')'''
-        delete = 'delete from 1test'
-        select = 'select * from test'
-        print(config)
-
-        res = db.execute(select)
-        print(res)
+    conn = engine.connect()
+    conn.execute(text('select 1'))
