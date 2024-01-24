@@ -13,7 +13,7 @@ _TYPE = conint(ge=0, le=1)
 _STATUS = conint(ge=0, le=3)
 _FLAG_CONTENT = constr(max_length=300)
 _COMMENT_CONTENT = constr(max_length=100)
-
+ICO_NAME = constr(max_length=30)
 
 '''
 status字段是int值，状态保存为位
@@ -44,7 +44,7 @@ class Flag(Model, FlagMixin):
     create_time: datetime
     update_time: datetime
     pictures: List[str]
-    ico_name: str
+    ico_name: ICO_NAME
     dead_line: Optional[datetime]
 
 
@@ -67,7 +67,7 @@ class AddFlag(Model):
     type: _TYPE
     status: _STATUS
     pictures: List[str]
-    ico_name: constr(max_length=20)
+    ico_name: ICO_NAME
     temp: bool
 
     @property
@@ -91,7 +91,7 @@ class UpdateFlag(Model):
     type: _TYPE
     status: _STATUS
     pictures: List[str]
-    ico_name: constr(max_length=20)
+    ico_name: ICO_NAME
 
 
 class FlagPictures(Model):
@@ -152,7 +152,7 @@ class OpenFlag(Model, FlagMixin):
     create_time: datetime
     update_time: datetime
     pictures: List[str]
-    ico_name: str
+    ico_name: ICO_NAME
     dead_line: Optional[datetime]
     # 相关
     is_like: bool = False
