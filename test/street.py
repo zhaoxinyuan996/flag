@@ -18,7 +18,7 @@ class UserBehavior(TaskSet):
 
 
 class WebsiteUser(HttpUser):
-    host = "https://www.flag-app.asia"
+    host = "https://flag-app.asia"
     tasks = [UserBehavior]
     min_wait = 1500
     max_wait = 5000

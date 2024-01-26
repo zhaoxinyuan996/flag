@@ -25,9 +25,9 @@ class DelayJob:
             delay_shell(cls.job_queue)
 
     else:
-        import uwsgidecorators
+        # import uwsgidecorators
 
         @classmethod
-        @uwsgidecorators.thread
+        # @uwsgidecorators.thread
         def run(cls):
             delay_shell(cls.job_queue)
