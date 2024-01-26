@@ -12,7 +12,6 @@ from app.constants import RespMsg, allow_picture_type, user_picture_size, FileTy
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, QueryUser, User
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
-from common.job import DelayJob
 from util.config import config
 from util.database import db, redis_cli
 from util.up_oss import up_oss
@@ -69,7 +68,7 @@ def sign_in(user: SignIn):
     user_id, password = res
     if check_password_hash(password, user.password):
         access_token = create_access_token(identity=user_id)
-        DelayJob.job_queue.put(refresh_user(user_id))
+        refresh_user(user_id)
         return resp(RespMsg.user_sign_in_success, user_id=user_id, access_token=access_token)
     else:
         return resp(RespMsg.user_sign_in_password_error, -1)
@@ -95,7 +94,7 @@ def sign_up_wechat(wechat: SignWechat):
             dao.third_part_sigh_up_user(user_id)
 
     access_token = create_access_token(identity=user_id)
-    DelayJob.job_queue.put(refresh_user(user_id))
+    refresh_user(user_id)
     return resp(RespMsg.user_sign_in_success, user_id=user_id, new=new, access_token=access_token)
 
 
@@ -105,7 +104,7 @@ def refresh_jwt():
     """暂时当作测试接口"""
     user_id = g.user_id
     access_token = create_access_token(identity=user_id)
-    DelayJob.job_queue.put(refresh_user(user_id))
+    refresh_user(user_id)
     return resp(RespMsg.user_sign_in_success, access_token=access_token)
 
 
