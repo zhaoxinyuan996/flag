@@ -17,5 +17,8 @@ dev = config['env'] == 'dev'
 
 up_config = config['up_oss'][config['env']]
 
+mq_auth = config['mq'][config['env']]['auth']
+mq_conn = config['mq'][config['env']]['conn']
+
 if __name__ == '__main__':
     print(config)

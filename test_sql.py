@@ -1,11 +1,13 @@
 from typing import Optional
 
 from pydantic import BaseModel
-from sqlalchemy import text, GenerativeSelect
+from sqlalchemy import text, GenerativeSelect, ChunkedIteratorResult
+from sqlalchemy.engine.result import RMKeyView, ResultMetaData
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import coercions, roles
 from sqlalchemy.sql.base import HasCompileState
 from sqlalchemy.sql.selectable import TypedReturnsRows, _SelectFromElements, HasHints, HasSuffixes, HasPrefixes
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Field, SQLModel, create_engine, select
 
 
 class Hero(SQLModel, table=True):
@@ -16,7 +18,7 @@ class Hero(SQLModel, table=True):
 
 
 # class Hero(BaseModel):
-#     id: Optional[int] = Field(default=None, primary_key=True)
+#     id: Optional[int]
 #     name: str
 #     secret_name: str
 #     age: Optional[int] = None
@@ -59,16 +61,23 @@ class Query(
 
         GenerativeSelect.__init__(self)
 
-
-
+def chunks(size):  # type: ignore
+    return iter(range(size))
 def select_heroes():
     with Session(engine) as session:
-        # statement = text('select * from hero')
+        statement = text('select * from hero')
         statement = select(Hero)
         # statement = Query(Hero)
-        results = session.exec(statement)
-        for hero in results:
-            print(hero)
+        result = session.execute(statement)
+        print(result.context.compiled.compile_state)
+        # ChunkedIteratorResult(
+        #     ['hero'],
+        #     chunks(1),
+        #     True,
+        #     results,
+        #     False
+        # )
+        print(result.all())
 
 
 def main():

@@ -65,7 +65,7 @@ class StatisticsType:
 class FlagNum:
     normal_user = 50
     vip_user = 200
-    hidden_user = 1000
+    senior_user = 1000
 
 
 class UserClass:
@@ -73,7 +73,7 @@ class UserClass:
     block = -1
     normal = 0
     vip = 1
-    hidden = 2
+    senior = 2
 
 
 class Message(dict):

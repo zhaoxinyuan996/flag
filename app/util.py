@@ -1,10 +1,8 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
-import random
-import requests
 from datetime import datetime
-from functools import wraps, partial
+from functools import wraps
 from uuid import UUID
 import ujson
 from flask.json.provider import DefaultJSONProvider
@@ -13,10 +11,8 @@ from typing import Any, Optional, Callable, Union, Set, Dict
 from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from werkzeug.middleware.profiler import ProfilerMiddleware
-
-from common.job import DelayJob
-from util.database import db, redis_cli
-from .base_dao import build_model, base_dao
+from util.database import redis_cli
+from .base_dao import build_model
 from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
 from flask import request, jsonify, g, Response
@@ -53,52 +49,13 @@ class PictureStorageSet:
         return v
 
 
-def _refresh_user(user_id: UUID, ip: str):
-    """获取ip位置"""
-    from app import app
-
-    def _get_local():
-        try:
-            data = requests.get(api % ip).json()
-            log.info(str(data))
-            for key in keys:
-                data = data[key]
-            return data
-        except requests.RequestException:
-            return None
-        except Exception as e:
-            log.exception(e)
-            return None
-
-    if ip == '127.0.0.1':
-        return
-
-    apis = (
-        ('https://www.ip.cn/api/index?type=1&ip=%s', ('address',)),
-        # 百度这个嵌套了一个数组，先不用这个
-        # ('http://opendata.baidu.com/api.php?query=%s&co=&resource_id=6006&oe=utf8', ('addr',)),
-        ('https://searchplugin.csdn.net/api/v1/ip/get?ip=%s', ('data', 'address')),
-        ('https://whois.pconline.com.cn/ipJson.jsp?ip=%s&json=true', ('addr',)),
-        ('http://ip-api.com/json/%s?lang=zh-CN', ('regionName',)),
-        ('http://whois.pconline.com.cn/ipJson.jsp?json=true&ip=%s', ('addr',)),
-    )
-    idx_list = [i for i in range(len(apis))]
-    random.shuffle(idx_list)
-    local = ''
-    for i in idx_list:
-        api, keys = apis[i]
-        local = _get_local()
-        if local:
-            break
-    with app.app_context():
-        base_dao.refresh(user_id, local=local)
-        db.session.commit()
-
-
 def refresh_user(user_id: UUID):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
     remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
-    return partial(_refresh_user, user_id, remote_ip)
+    if remote_ip == '127.0.0.1':
+        return
+    from util.msg_middleware import mq_local
+    mq_local.put(user_id, remote_ip)
 
 
 def dcs_lock(key: str, ex=5000):
@@ -156,7 +113,7 @@ def custom_jwt(
             # jwt的超时时间的一半，重新颁发jwt和记录alive时间
             if datetime.timestamp(datetime.now()) + (JwtConfig.jwt_access_minutes / 2) > jwt_info['exp']:
                 # 添加ip的时候启动这个
-                DelayJob.job_queue.put(refresh_user(user_id))
+                refresh_user(user_id)
                 g.access_token = create_access_token(identity=user_id)
 
             return fn(*args, **kwargs)

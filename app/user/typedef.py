@@ -17,8 +17,8 @@ class UserMixin:
     def user_class(self) -> int:
         if self.block_deadline and self.block_deadline > datetime.now():
             return UserClass.block
-        elif self.hidden is True:
-            return UserClass.hidden
+        elif self.vip_deadline and self.vip_deadline == datetime.max:
+            return UserClass.senior
         elif self.vip_deadline and self.vip_deadline > datetime.now():
             return UserClass.vip
         else:
@@ -33,7 +33,7 @@ class UserMixin:
         elif self.user_class == UserClass.vip:
             return FlagNum.vip_user - self.flag_num
         elif self.user_class == UserClass.hidden:
-            return FlagNum.hidden_user - self.flag_num
+            return FlagNum.senior_user - self.flag_num
         raise UndefinedError('user class')
 
 
