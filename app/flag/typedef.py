@@ -24,11 +24,11 @@ anonymous   hide
 
 class FlagMixin:
     @property
-    def hide(self) -> bool:
+    def hide(self: 'Flag') -> bool:
         return bool(self.status & 0b1)
 
     @property
-    def anonymous(self) -> bool:
+    def anonymous(self: 'Flag') -> bool:
         return bool(self.status & 0b10)
 
 
