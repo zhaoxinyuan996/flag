@@ -1,9 +1,11 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
+import platform
 import time
 from datetime import datetime
 from functools import wraps
+from threading import Lock
 from uuid import UUID
 import ujson
 from flask.json.provider import DefaultJSONProvider
@@ -59,31 +61,48 @@ def refresh_user(user_id: UUID):
     mq_local.put(user_id, remote_ip)
 
 
-def dcs_lock(key: str, ex=5000, raise_: bool = True):
-    """分布式锁"""
+if platform.system().lower() != 'windows':
+    import uwsgi
 
+
+class ApiLock:
+    def __init__(self, func_name: str):
+        self.func_name = func_name
+
+    if platform.system().lower() == 'windows':
+        _lock_mapping = {
+            'set-statistics': Lock(),
+            'upload-avatar': Lock()
+        }
+
+        def __enter__(self):
+            self._lock_mapping[self.func_name].acquire()
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self._lock_mapping[self.func_name].release()
+
+    else:
+
+        _lock_mapping = {
+            'set-statistics': 1,
+            'upload-avatar': 2
+        }
+
+        def __enter__(self):
+            uwsgi.lock(self._lock_mapping[self.func_name])
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            uwsgi.unlock(self._lock_mapping[self.func_name])
+
+
+def api_lock(lock):
+    """uwsgi锁"""
     def f1(func: Callable):
         @wraps(func)
         def f2(*args, **kwargs):
-            k = f'{key}-{g.user_id}'
-            # 锁被占用
-            # 抛错
-            if raise_:
-                if redis_cli.get(k):
-                    raise DCSLockError('操作过快')
-            # 等待
-            else:
-                while redis_cli.get(k):
-                    time.sleep(0.1)
-
-            try:
-                redis_cli.set(k, ex=ex)
+            with lock:
                 return func(*args, **kwargs)
-            finally:
-                redis_cli.delete(k)
-
         return f2
-
     return f1
 
 

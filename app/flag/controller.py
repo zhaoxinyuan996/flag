@@ -14,7 +14,8 @@ from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
     AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag, \
     AppIlluminate
 from app.user.controller import get_user_info
-from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, dcs_lock
+from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, api_lock, \
+    ApiLock
 from util.database import db, redis_cli
 from util.up_oss import up_oss
 
@@ -55,7 +56,7 @@ def get_region_flag(get: GetFlagByMap) -> Tuple[int, List[dict]]:
         return code, value
 
 
-@dcs_lock('set-statistics', ex=2000, raise_=False)
+@api_lock(ApiLock('set-statistics'))
 def set_statistics(user_id: Union[UUID, List[UUID]], flag_id: UUID, key: str):
     """
     设置flag更改状态,
