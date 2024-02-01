@@ -63,7 +63,7 @@ if platform.system().lower() != 'windows':
     try:
         # slave进程不会使用uwsgi全局锁
         import uwsgi
-    except ImportError:
+    except ModuleNotFoundError:
         ...
 
 
