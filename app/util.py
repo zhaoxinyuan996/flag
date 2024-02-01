@@ -2,7 +2,6 @@
 import os
 import logging
 import platform
-import time
 from datetime import datetime
 from functools import wraps
 from threading import Lock
@@ -14,9 +13,8 @@ from typing import Any, Optional, Callable, Union, Set, Dict
 from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from werkzeug.middleware.profiler import ProfilerMiddleware
-from util.database import redis_cli
 from .base_dao import build_model
-from .constants import Message, JwtConfig, DCSLockError
+from .constants import Message, JwtConfig
 from util.config import dev
 from flask import request, jsonify, g, Response
 
@@ -62,7 +60,11 @@ def refresh_user(user_id: UUID):
 
 
 if platform.system().lower() != 'windows':
-    import uwsgi
+    try:
+        # slave进程不会使用uwsgi全局锁
+        import uwsgi
+    except ImportError:
+        ...
 
 
 class ApiLock:
@@ -82,7 +84,6 @@ class ApiLock:
             self._lock_mapping[self.func_name].release()
 
     else:
-
         _lock_mapping = {
             'set-statistics': 1,
             'upload-avatar': 2
