@@ -56,7 +56,7 @@ def refresh_user(user_id: UUID):
     if remote_ip == '127.0.0.1':
         return
     from util.msg_middleware import mq_local
-    mq_local.put(user_id, remote_ip)
+    mq_local.put(f'{user_id}|{remote_ip}')
 
 
 if platform.system().lower() != 'windows':

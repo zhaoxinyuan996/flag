@@ -1,4 +1,5 @@
 import logging
+from time import sleep
 from uuid import UUID
 import pika
 from util import config
@@ -22,23 +23,43 @@ class MqBase:
         # 声明队列
         self.channel.queue_declare(queue=queue_name)
 
-
-class MqLocal(MqBase):
-    def put(self, user_id: UUID, ip: str):
+    def put(self, body: str):
         """通过ip获取为详细位置"""
-        body = f'{user_id}|{ip}'
         log.info(f'put_local_by_ip: {body}')
         self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=body)
 
-    def get(self):
+    def loop(self):
         self.channel.basic_consume(self.queue_name, self.callback, auto_ack=True)
         self.channel.start_consuming()
 
+    @classmethod
+    def monitor(cls: 'MqBase', *args):
+        while True:
+            try:
+                cls.__new__(*args).loop()
+            except Exception as e:
+                log.error(e)
+            finally:
+                sleep(5)
+
+    @staticmethod
+    def callback(ch, method, properties, body: bytes):
+        raise NotImplementedError
+
+
+class MqLocal(MqBase):
     @staticmethod
     def callback(ch, method, properties, body: bytes):
         user_id, host = body.decode().split('|')
         log.info(f'local_by_ip callback: {body}')
         refresh_user_mq(UUID(user_id), host)
+
+class MqFlagStatistics(MqBase):
+
+    @staticmethod
+    def callback(ch, method, properties, body: bytes):
+
+
 
 
 mq_local = MqLocal(QueueType.local_by_ip)
