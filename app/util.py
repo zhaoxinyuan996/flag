@@ -1,6 +1,7 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
+import time
 from datetime import datetime
 from functools import wraps
 from uuid import UUID
@@ -58,7 +59,7 @@ def refresh_user(user_id: UUID):
     mq_local.put(user_id, remote_ip)
 
 
-def dcs_lock(key: str, ex=5000):
+def dcs_lock(key: str, ex=5000, raise_: bool = True):
     """分布式锁"""
 
     def f1(func: Callable):
@@ -66,8 +67,15 @@ def dcs_lock(key: str, ex=5000):
         def f2(*args, **kwargs):
             k = f'{key}-{g.user_id}'
             # 锁被占用
-            if redis_cli.get(k):
-                raise DCSLockError('操作过快')
+            # 抛错
+            if raise_:
+                if redis_cli.get(k):
+                    raise DCSLockError('操作过快')
+            # 等待
+            else:
+                while redis_cli.get(k):
+                    time.sleep(0.1)
+
             try:
                 redis_cli.set(k, ex=ex)
                 return func(*args, **kwargs)

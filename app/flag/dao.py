@@ -3,7 +3,7 @@ from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, OpenFlag, \
-    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment, Flag
+    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment, Flag, AppIlluminate
 
 
 class FlagDao(Dao):
@@ -80,23 +80,18 @@ class FlagDao(Dao):
                'where a.rank=2 and ST_Contains(f.fence,ST_GeomFromText(:location))')
         return self.execute(sql, location=point(location))
 
-    def get_flag_by_city(self, user_id: UUID, code, get: GetFlagByMap) -> List[FlagRegion]:
+    def get_flag_by_city(self, code, get: GetFlagByMap) -> List[FlagRegion]:
         sql = ('with s0 as( '
                '\n-- 根据所在市查找下属区县\n'
                'select a.adcode, a.name, a.rank, a.center from adcode a where parent=:code), '
                's1 as ( '
                '\n-- 下属区县的电子围栏\n'
                'select s0.name region_name, center, f.fence from s0 inner join fences f on s0.adcode=f.adcode '
-               'where s0.rank=3 and s0.center is not null), '
-               's2 as ('
-               '\n-- 电子围栏和标记关联\n'
-               f'select location '
-               'from flag where '
-               f'(user_id=:user_id or {self.not_hide}) and type=:type) '
+               'where s0.rank=3 and s0.center is not null) '
                f"select count(location) flag_num, s1.region_name, {Dao.location('s1.center', 'location')} "
-               'from s1 left join s2 on ST_Contains(s1.fence,s2.location) '
+               'from s1 left join flag f on ST_Contains(s1.fence,f.location) '
                f'group by s1.region_name, s1.center')
-        return self.execute(sql, user_id=user_id, code=code, type=get.type)
+        return self.execute(sql, code=code, type=get.type)
 
     def set_flag_type(self, user_id: UUID, flag_id: UUID, flag_type: int):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
@@ -209,6 +204,15 @@ class FlagDao(Dao):
                f", comment_num={comment_diff}+comment_num "
                f"where flag_id=:flag_id")
         self.execute(sql, flag_id=flag_id)
+
+    def app_illuminate(self) -> List[AppIlluminate]:
+        # 目前看城市没有重名
+        sql = ('with s1 as (select a.name, f.fence from adcode a inner join fences f on a.adcode=f.adcode '
+               'where "rank"=2 and not virtual) '
+               'select s1.name city, count(1) flag_num from flag f inner join s1 on ST_Contains(s1.fence,f.location) '
+               'group by s1.name order by flag_num desc')
+        print(self.text(sql))
+        return self.execute(sql)
 
 
 dao: FlagDao = FlagDao()

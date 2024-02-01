@@ -11,9 +11,10 @@ from flask import Blueprint, request, g
 from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
     StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag, \
+    AppIlluminate
 from app.user.controller import get_user_info
-from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
+from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, dcs_lock
 from util.database import db, redis_cli
 from util.up_oss import up_oss
 
@@ -39,7 +40,7 @@ def get_flag_info(flag_id: UUID) -> Flag:
         return info
 
 
-def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
+def get_region_flag(get: GetFlagByMap) -> Tuple[int, List[dict]]:
     """根据定位位置获取区域内所有的点位"""
     code = dao.get_city_by_location(get.location) or 0
     if not code:
@@ -49,11 +50,12 @@ def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
     if value := redis_cli.get(key):
         return code, json.loads(value)
     else:
-        value = [f.model_dump() for f in dao.get_flag_by_city(user_id, code, get)]
+        value = [f.model_dump() for f in dao.get_flag_by_city(code, get)]
         redis_cli.set(key, json.dumps(value), ex=CacheTimeout.region_flag)
         return code, value
 
 
+@dcs_lock('set-statistics', ex=2000, raise_=False)
 def set_statistics(user_id: Union[UUID, List[UUID]], flag_id: UUID, key: str):
     """
     设置flag更改状态,
@@ -231,7 +233,7 @@ def get_flag_by_map(get: GetFlagByMap):
             'flags': [f.model_dump() for f in dao.get_flag_by_map(g.user_id, get)]})
     # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
-        code, data = get_region_flag(g.user_id, get)
+        code, data = get_region_flag(get)
         return resp({'code': code, 'detail': False, 'flags': data})
 
 
@@ -386,7 +388,14 @@ def delete_comment(comment: CommentId):
             set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment_users_down)
     return resp(RespMsg.success)
 
-# @bp.route('/get-city', methods=['post'])
-# @custom_jwt()
-# def get_city():
-#     return resp(location_code)
+
+@bp.route('/app-illuminate', methods=['post'])
+@custom_jwt()
+def app_illuminate():
+    key = f'app_illuminate'
+    if value := redis_cli.get(key):
+        return resp(pickle.loads(value))
+    else:
+        info = [i.model_dump() for i in dao.app_illuminate()]
+        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.app_illuminate)
+        return resp(info)

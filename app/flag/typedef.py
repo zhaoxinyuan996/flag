@@ -215,3 +215,8 @@ class FlagStatistics(Model):
     fav_users: Optional[dict]
     comment_users: Optional[dict]
     update_time: datetime
+
+
+class AppIlluminate(Model):
+    city: str
+    flag_num: int
