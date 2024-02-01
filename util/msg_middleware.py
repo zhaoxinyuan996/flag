@@ -2,6 +2,7 @@ import logging
 from uuid import UUID
 import pika
 from util import config
+from common.user import refresh_user_mq
 
 
 log = logging.getLogger(__name__)
@@ -28,6 +29,16 @@ class MqLocal(MqBase):
         body = f'{user_id}|{ip}'
         log.info(f'put_local_by_ip: {body}')
         self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=body)
+
+    def get(self):
+        self.channel.basic_consume(self.queue_name, self.callback, auto_ack=True)
+        self.channel.start_consuming()
+
+    @staticmethod
+    def callback(ch, method, properties, body: bytes):
+        user_id, host = body.decode().split('|')
+        log.info(f'local_by_ip callback: {body}')
+        refresh_user_mq(UUID(user_id), host)
 
 
 mq_local = MqLocal(QueueType.local_by_ip)
