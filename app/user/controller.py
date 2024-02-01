@@ -138,7 +138,7 @@ def upload_avatar():
     if suffix not in allow_picture_type:
         return resp(RespMsg.user_picture_format_error + str(allow_picture_type), -1)
     b = request.files['file'].stream.read()
-    if get_user_info().user_class is not UserClass.hidden and len(b) > user_picture_size:
+    if get_user_info().user_class is not UserClass.senior and len(b) > user_picture_size:
         return resp(RespMsg.too_large, -1)
 
     # 生成文件名

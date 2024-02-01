@@ -5,10 +5,9 @@ from util.config import config
 from logging.handlers import TimedRotatingFileHandler
 
 
-def setup_logger():
+def setup_logger(default_file: str):
     """初始化日志模块"""
     level = config['log_level']
-    default_file = 'flag.log'
     log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')
     if not os.path.exists(log_dir):
         os.mkdir(log_dir)

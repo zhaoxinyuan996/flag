@@ -1,8 +1,6 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
-import random
-import requests
 from datetime import datetime
 from functools import wraps
 from uuid import UUID
@@ -13,10 +11,8 @@ from typing import Any, Optional, Callable, Union, Set, Dict
 from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from werkzeug.middleware.profiler import ProfilerMiddleware
-
-from common.msg_middleware import mq_local
-from util.database import db, redis_cli
-from .base_dao import build_model, base_dao
+from util.database import redis_cli
+from .base_dao import build_model
 from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
 from flask import request, jsonify, g, Response
@@ -58,6 +54,7 @@ def refresh_user(user_id: UUID):
     remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
     if remote_ip == '127.0.0.1':
         return
+    from util.msg_middleware import mq_local
     mq_local.put(user_id, remote_ip)
 
 
