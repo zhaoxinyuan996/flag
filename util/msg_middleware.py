@@ -16,9 +16,8 @@ class QueueType:
 
 class MqBase:
     queue_name: ''
-
+    cb: Callable
     def __init__(self):
-        self.cb = None
         try:
             # 创建连接和通道
             user_info = pika.PlainCredentials(**config.mq_auth)  # 用户名和密码
