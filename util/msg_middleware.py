@@ -18,8 +18,8 @@ class MqBase:
     queue_name: ''
 
     def __init__(self):
+        self.cb = None
         try:
-            self.cb = None
             # 创建连接和通道
             user_info = pika.PlainCredentials(**config.mq_auth)  # 用户名和密码
             self.channel = pika.BlockingConnection(pika.ConnectionParameters(
