@@ -8,6 +8,7 @@ import requests
 from app.base_dao import base_dao
 from common.app_shadow import placeholder_app
 from util import db
+from util.msg_middleware import mq_local
 
 log = logging.getLogger(__name__)
 
@@ -50,3 +51,11 @@ def refresh_user_mq(user_id: UUID, ip: str):
     with placeholder_app.app_context():
         base_dao.refresh(user_id, local=local)
         db.session.commit()
+
+
+def flush():
+    ...
+
+
+# 注册回调
+mq_local.register_cb(refresh_user_mq)

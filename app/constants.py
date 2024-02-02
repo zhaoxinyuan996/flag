@@ -56,12 +56,9 @@ class FileType:
 
 
 class StatisticsType:
-    like_users_up = 'like_users_up'
-    like_users_down = 'like_users_down'
-    fav_users_up = 'fav_users_up'
-    fav_users_down = 'fav_users_down'
-    comment_users_up = 'comment_users_up'
-    comment_users_down = 'comment_users_down'
+    like = 'like'
+    fav = 'fav'
+    comment = 'comment'
 
 
 class FlagNum:

@@ -11,12 +11,12 @@ from flask import Blueprint, request, g
 from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
     StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag, \
-    AppIlluminate
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
 from app.user.controller import get_user_info
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, api_lock, \
     ApiLock
 from util.database import db, redis_cli
+from util.msg_middleware import mq_flag_statistics
 from util.up_oss import up_oss
 
 module_name = os.path.basename(os.path.dirname(__file__))
@@ -56,16 +56,14 @@ def get_region_flag(get: GetFlagByMap) -> Tuple[int, List[dict]]:
         return code, value
 
 
-@api_lock(ApiLock('set-statistics'))
-def set_statistics(user_id: Union[UUID, List[UUID]], flag_id: UUID, key: str):
+def set_statistics(user_id: UUID, flag_id: UUID, key: str, num: int):
     """
     设置flag更改状态,
     后面改成每n秒同步一次？事务一致性怎么保证？操作也放进缓存再做同步？
     """
-    if isinstance(user_id, (UUID, str)):
-        user_id = (user_id, )
     assert getattr(StatisticsType, key)
-    dao.set_statistics(flag_id, **{key: user_id})
+    mq_flag_statistics.put(f'{user_id}|{flag_id}|{key}|{num}')
+    return resp(RespMsg.success)
 
 
 @bp.route('/add', methods=['post'])
@@ -280,7 +278,7 @@ def add_fav(add_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         if flag_id := dao.add_fav(user_id, add_.id):
-            set_statistics(user_id, flag_id, StatisticsType.fav_users_up)
+            set_statistics(user_id, flag_id, StatisticsType.fav, 1)
     return resp(RespMsg.success)
 
 
@@ -292,7 +290,7 @@ def delete_fav(delete_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         if flag_id := dao.delete_fav(user_id, delete_.id):
-            set_statistics(user_id, flag_id, StatisticsType.fav_users_down)
+            set_statistics(user_id, flag_id, StatisticsType.fav, 0)
     return resp(RespMsg.success)
 
 
@@ -304,7 +302,7 @@ def add_like(like: FlagId):
     user_id = g.user_id
     is_like = dao.is_like(user_id, like.id)
     if not is_like:
-        set_statistics(user_id, like.id, StatisticsType.like_users_up)
+        set_statistics(user_id, like.id, StatisticsType.like, 1)
     return resp(RespMsg.success)
 
 
@@ -316,7 +314,7 @@ def delete_like(delete_: FlagId):
     user_id = g.user_id
     is_like = dao.is_like(user_id, delete_.id)
     if is_like:
-        set_statistics(user_id, delete_.id, StatisticsType.like_users_down)
+        set_statistics(user_id, delete_.id, StatisticsType.like, 0)
     return resp(RespMsg.success)
 
 
@@ -340,7 +338,7 @@ def add_comment(add_: AddComment):
         # 根评论才计数
         with db.auto_commit():
             if comment_id := dao.add_comment(user_id, add_, distance if add_.show_distance else None):
-                set_statistics(user_id, add_.flag_id, StatisticsType.comment_users_up)
+                set_statistics(user_id, add_.flag_id, StatisticsType.comment, 1)
 
     return resp(RespMsg.success, comment_id=comment_id)
 
@@ -386,7 +384,7 @@ def delete_comment(comment: CommentId):
         delete_ = dao.delete_comment(g.user_id, comment.id)
         # 如果是根评论就删除计数
         if delete_ and delete_.parent_id is None:
-            set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment_users_down)
+            set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment, 0)
     return resp(RespMsg.success)
 
 

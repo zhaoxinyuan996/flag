@@ -2,6 +2,7 @@
 import os
 import logging
 import platform
+import time
 from datetime import datetime
 from functools import wraps
 from threading import Lock
@@ -13,8 +14,10 @@ from typing import Any, Optional, Callable, Union, Set, Dict
 from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from werkzeug.middleware.profiler import ProfilerMiddleware
+
+from util.database import redis_cli
 from .base_dao import build_model
-from .constants import Message, JwtConfig
+from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
 from flask import request, jsonify, g, Response
 
@@ -53,8 +56,8 @@ class PictureStorageSet:
 def refresh_user(user_id: UUID):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
     remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
-    if remote_ip == '127.0.0.1':
-        return
+    # if remote_ip == '127.0.0.1': todo
+    #     return
     from util.msg_middleware import mq_local
     mq_local.put(f'{user_id}|{remote_ip}')
 
@@ -68,13 +71,13 @@ if platform.system().lower() != 'windows':
 
 
 class ApiLock:
+    """uwsgi锁"""
     def __init__(self, func_name: str):
         self.func_name = func_name
 
     if platform.system().lower() == 'windows':
         _lock_mapping = {
-            'set-statistics': Lock(),
-            'upload-avatar': Lock()
+            'place': Lock(),
         }
 
         def __enter__(self):
@@ -85,8 +88,7 @@ class ApiLock:
 
     else:
         _lock_mapping = {
-            'set-statistics': 1,
-            'upload-avatar': 2
+            'place': 1,
         }
 
         def __enter__(self):
@@ -103,6 +105,30 @@ def api_lock(lock):
         def f2(*args, **kwargs):
             with lock:
                 return func(*args, **kwargs)
+        return f2
+    return f1
+
+
+def dcs_lock(key: str, ex=5000, raise_: bool = True):
+    """分布式锁"""
+    def f1(func: Callable):
+        @wraps(func)
+        def f2(*args, **kwargs):
+            k = f'{key}-{g.user_id}'
+            # 锁被占用
+            # 抛错
+            if raise_:
+                if redis_cli.get(k):
+                    raise DCSLockError('操作过快')
+            # 等待
+            else:
+                while redis_cli.get(k):
+                    time.sleep(0.1)
+            try:
+                redis_cli.set(k, ex=ex)
+                return func(*args, **kwargs)
+            finally:
+                redis_cli.delete(k)
         return f2
     return f1
 

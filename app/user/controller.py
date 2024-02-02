@@ -7,7 +7,7 @@ from uuid import UUID
 import requests
 from app.user.dao import dao
 from flask import Blueprint, request, g
-from app.util import resp, custom_jwt, args_parse, refresh_user, api_lock, ApiLock
+from app.util import resp, custom_jwt, args_parse, refresh_user, api_lock, ApiLock, dcs_lock
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout, UserClass
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, QueryUser, User
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -128,7 +128,7 @@ def user_info(query: QueryUser):
         return resp(res.model_dump())
 
 
-@api_lock(ApiLock('upload-avatar'))
+@dcs_lock('upload-avatar')
 @bp.route('/upload-avatar', methods=['post'])
 @custom_jwt()
 def upload_avatar():
