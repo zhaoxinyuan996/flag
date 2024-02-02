@@ -6,7 +6,7 @@ from app.util import Model
 
 
 class Message(Model):
-    id: UUID
+    id: int
     type: int
     send_id: UUID
     receive_id: UUID
@@ -35,3 +35,7 @@ class AskNotice(Model):
     title: str
     content: str
     create_time: datetime
+
+
+class ReceiveMessage(Model):
+    id: int

@@ -2,6 +2,8 @@ import logging
 import signal
 from threading import Thread
 from time import sleep
+
+from common.auto_clean import AutoClean
 from common.user import flush as user_flush
 from common.flag import flag_like
 from common.message import user_msg_handler
@@ -23,7 +25,8 @@ def flush_before_exit(signum, frame):
 logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
 scheduler = BackgroundScheduler()
 scheduler.add_job(flag_like.flush, 'interval', seconds=3)
-scheduler.add_job(user_msg_handler.flush, 'interval', seconds=1)
+scheduler.add_job(user_msg_handler.flush, 'interval', seconds=10)
+scheduler.add_job(AutoClean.clean_message, 'cron', hour=1, minute=0)
 scheduler.start()
 
 if __name__ == '__main__':

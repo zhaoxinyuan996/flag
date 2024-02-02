@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from app.base_dao import Dao
-from app.message.typedef import AskNotice
+from app.message.typedef import AskNotice, Message
 
 
 class MessageDao(Dao):
@@ -17,6 +17,17 @@ class MessageDao(Dao):
                'values(:type_, :send_id, :receive_id, :flag_id, :extra, :content, current_timestamp)')
         self.execute(sql, send_id=send_id, receive_id=receive_id, flag_id=flag_id,
                      extra=extra, type_=type_, content=content)
+
+    def receive_message(self,user_id: UUID,  id_: int) -> List[Message]:
+        last = '-7days'
+        sql = ('update message set read=true where receive_id=:user_id and id>:id and '
+               '(not read or create_time>current_timestamp + :last) returning *')
+        return self.execute(sql, id=id_, user_id=user_id, last=last)
+
+    def clean_timeout_message(self):
+        last = '-7days'
+        sql = 'delete from message where read and create_time<current_timestamp + :last'
+        self.execute(sql, last=last)
 
 
 dao: MessageDao = MessageDao()
