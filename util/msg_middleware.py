@@ -67,7 +67,7 @@ class MqLocal(MqBase):
         self.cb(UUID(user_id), host)
 
 
-class MqFlagStatistics(MqBase):
+class MqFlagLike(MqBase):
     queue_name = QueueType.flag_statistics
 
     def callback(self, ch, method, properties, body: bytes):
@@ -80,4 +80,4 @@ class MqFlagStatistics(MqBase):
 
 
 mq_local = MqLocal()
-mq_flag_statistics = MqFlagStatistics()
+mq_flag_like = MqFlagLike()
