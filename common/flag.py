@@ -7,7 +7,6 @@ from typing import Dict, Tuple, Set
 from uuid import UUID
 from util import db
 from app.base_dao import base_dao
-from app.flag.dao import dao
 from common.app_shadow import placeholder_app
 from util.msg_middleware import mq_flag_statistics
 from util.wrappers import thread_lock
@@ -39,6 +38,7 @@ class Statistics:
 
     @thread_lock(lock)
     def flush(self):
+        log.warning('flush')
         all_sql = []
         for flag_id, kv in self.statistics_cache.items():
             loop = []

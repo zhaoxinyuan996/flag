@@ -43,9 +43,9 @@ class MqBase:
             self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=body)
 
     def loop(self):
-        self.channel.basic_consume(self.queue_name, self.callback, auto_ack=True)
         while True:
             try:
+                self.channel.basic_consume(self.queue_name, self.callback, auto_ack=True)
                 self.channel.start_consuming()
             except Exception as e:
                 log.error(f'loop {self.queue_name}: {e}')
