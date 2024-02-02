@@ -51,7 +51,8 @@ class MqBase:
                 log.error(e)
                 self.__init__()
             finally:
-                sleep(5)
+                log.warning('loopppppppppppppppp')
+                sleep(1)
 
     @staticmethod
     def callback(ch, method, properties, body: bytes):
