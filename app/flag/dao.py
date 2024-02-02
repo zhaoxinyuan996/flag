@@ -171,7 +171,7 @@ class FlagDao(Dao):
 
     def insert_statistics(self, flag_id: UUID):
         sql = ('insert into flag_statistics (flag_id, like_users, update_time) '
-               "values(:flag_id, '', '', '', current_timestamp)")
+               "values(:flag_id, '', current_timestamp)")
         self.execute(sql, flag_id=flag_id)
 
     def delete_statistics(self, flag_id: UUID):
