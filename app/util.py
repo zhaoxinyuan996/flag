@@ -1,8 +1,11 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
+import platform
+import time
 from datetime import datetime
 from functools import wraps
+from threading import Lock
 from uuid import UUID
 import ujson
 from flask.json.provider import DefaultJSONProvider
@@ -11,6 +14,7 @@ from typing import Any, Optional, Callable, Union, Set, Dict
 from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from werkzeug.middleware.profiler import ProfilerMiddleware
+
 from util.database import redis_cli
 from .base_dao import build_model
 from .constants import Message, JwtConfig, DCSLockError
@@ -55,27 +59,77 @@ def refresh_user(user_id: UUID):
     if remote_ip == '127.0.0.1':
         return
     from util.msg_middleware import mq_local
-    mq_local.put(user_id, remote_ip)
+    mq_local.put(f'{user_id}|{remote_ip}')
 
 
-def dcs_lock(key: str, ex=5000):
+if platform.system().lower() != 'windows':
+    try:
+        # slave进程不会使用uwsgi全局锁
+        import uwsgi
+    except ModuleNotFoundError:
+        ...
+
+
+class ApiLock:
+    """uwsgi锁"""
+    def __init__(self, func_name: str):
+        self.func_name = func_name
+
+    if platform.system().lower() == 'windows':
+        _lock_mapping = {
+            'place': Lock(),
+        }
+
+        def __enter__(self):
+            self._lock_mapping[self.func_name].acquire()
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self._lock_mapping[self.func_name].release()
+
+    else:
+        _lock_mapping = {
+            'place': 1,
+        }
+
+        def __enter__(self):
+            uwsgi.lock(self._lock_mapping[self.func_name])
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            uwsgi.unlock(self._lock_mapping[self.func_name])
+
+
+def api_lock(lock):
+    """uwsgi锁"""
+    def f1(func: Callable):
+        @wraps(func)
+        def f2(*args, **kwargs):
+            with lock:
+                return func(*args, **kwargs)
+        return f2
+    return f1
+
+
+def dcs_lock(key: str, ex=5000, raise_: bool = True):
     """分布式锁"""
-
     def f1(func: Callable):
         @wraps(func)
         def f2(*args, **kwargs):
             k = f'{key}-{g.user_id}'
             # 锁被占用
-            if redis_cli.get(k):
-                raise DCSLockError('操作过快')
+            # 抛错
+            if raise_:
+                if redis_cli.get(k):
+                    raise DCSLockError('操作过快')
+            # 等待
+            else:
+                while redis_cli.get(k):
+                    time.sleep(0.1)
             try:
                 redis_cli.set(k, ex=ex)
                 return func(*args, **kwargs)
             finally:
                 redis_cli.delete(k)
-
         return f2
-
     return f1
 
 
