@@ -32,8 +32,8 @@ class Statistics:
         # 嵌套了好几层，就不用default dict了
         if flag_id not in self.statistics_cache:
             self.statistics_cache[flag_id] = {}
-            if key not in self.statistics_cache[flag_id]:
-                self.statistics_cache[flag_id][key] = (set(), set())
+        if key not in self.statistics_cache[flag_id]:
+            self.statistics_cache[flag_id][key] = (set(), set())
         self.statistics_cache[flag_id][key][num].add(user_id)
 
     @thread_lock(lock)

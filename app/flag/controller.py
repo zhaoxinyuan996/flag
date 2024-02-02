@@ -399,8 +399,8 @@ def delete_comment(comment: CommentId):
 def app_illuminate():
     key = 'app-illuminate'
     if illuminate := redis_cli.get(key):
-        return pickle.loads(illuminate)
+        illuminate = pickle.loads(illuminate)
     else:
         illuminate = [i.model_dump() for i in dao.app_illuminate()]
         redis_cli.set(key, pickle.dumps(illuminate), ex=CacheTimeout.app_illuminate)
-        return resp(illuminate)
+    return resp(illuminate)
