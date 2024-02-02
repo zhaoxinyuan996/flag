@@ -23,7 +23,7 @@ class MqBase:
             # 创建连接和通道
             user_info = pika.PlainCredentials(**config.mq_auth)  # 用户名和密码
             self.channel = pika.BlockingConnection(pika.ConnectionParameters(
-                credentials=user_info, connection_attempts=3, retry_delay=1, **config.mq_conn)).channel()
+                credentials=user_info, **config.mq_conn)).channel()
             # 声明队列
             self.channel.queue_declare(queue=self.queue_name)
         except Exception as e:

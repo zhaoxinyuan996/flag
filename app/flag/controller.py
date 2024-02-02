@@ -11,7 +11,8 @@ from flask import Blueprint, request, g
 from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
     StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag, \
+    AppIlluminate
 from app.user.controller import get_user_info
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
 from util.database import db, redis_cli
@@ -396,4 +397,10 @@ def delete_comment(comment: CommentId):
 @bp.route('/app-illuminate', methods=['post'])
 @custom_jwt()
 def app_illuminate():
-    return resp([i.model_dump() for i in dao.app_illuminate()])
+    key = 'app-illuminate'
+    if illuminate := redis_cli.get(key):
+        return pickle.loads(illuminate)
+    else:
+        illuminate = [i.model_dump() for i in dao.app_illuminate()]
+        redis_cli.set(key, pickle.dumps(illuminate), ex=CacheTimeout.app_illuminate)
+        return resp(illuminate)
