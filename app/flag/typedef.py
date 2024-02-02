@@ -24,11 +24,11 @@ anonymous   hide
 
 class FlagMixin:
     @property
-    def hide(self) -> bool:
+    def hide(self: 'Flag') -> bool:
         return bool(self.status & 0b1)
 
     @property
-    def anonymous(self) -> bool:
+    def anonymous(self: 'Flag') -> bool:
         return bool(self.status & 0b10)
 
 
@@ -94,9 +94,10 @@ class UpdateFlag(Model):
     ico_name: ICO_NAME
 
 
-class FlagPictures(Model):
+class FlagUpdateInfo(Model):
     id: UUID
     pictures: List[str]
+    location: LOCATION
 
 
 class GetFlagByOrderField(OrderField):
@@ -214,4 +215,12 @@ class FlagStatistics(Model):
     like_users: Optional[dict]
     fav_users: Optional[dict]
     comment_users: Optional[dict]
+    update_time: datetime
+
+
+class AppIlluminate(Model):
+    code: int
+    city: str
+    location: LOCATION
+    flag_num: int
     update_time: datetime

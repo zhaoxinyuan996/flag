@@ -14,7 +14,7 @@ _SIGNATURE = constr(max_length=50)
 class UserMixin:
     """抽象Mixin类"""
     @property
-    def user_class(self) -> int:
+    def user_class(self: 'User') -> int:
         if self.block_deadline and self.block_deadline > datetime.now():
             return UserClass.block
         elif self.vip_deadline and self.vip_deadline == datetime.max:
@@ -25,14 +25,14 @@ class UserMixin:
             return UserClass.normal
 
     @property
-    def allow_flag_num(self) -> int:
+    def allow_flag_num(self: 'User') -> int:
         if self.user_class == UserClass.block:
             return 0
         elif self.user_class == UserClass.normal:
             return FlagNum.normal_user - self.flag_num
         elif self.user_class == UserClass.vip:
             return FlagNum.vip_user - self.flag_num
-        elif self.user_class == UserClass.hidden:
+        elif self.user_class == UserClass.senior:
             return FlagNum.senior_user - self.flag_num
         raise UndefinedError('user class')
 

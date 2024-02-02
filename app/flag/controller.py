@@ -2,7 +2,7 @@ import json
 import os
 import logging
 import pickle
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 from uuid import UUID
 
 from app.user.dao import dao as user_dao
@@ -11,10 +11,12 @@ from flask import Blueprint, request, g
 from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
     StatisticsType, AppError
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag, \
+    AppIlluminate
 from app.user.controller import get_user_info
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
 from util.database import db, redis_cli
+from util.msg_middleware import mq_flag_statistics
 from util.up_oss import up_oss
 
 module_name = os.path.basename(os.path.dirname(__file__))
@@ -27,19 +29,22 @@ log = logging.getLogger(__name__)
 #     location_code = json.loads(city_file.read())
 
 
-def get_flag_info(flag_id: UUID) -> Flag:
+def get_flag_info(flag_id: UUID, refresh: Optional[Flag] = None) -> Flag:
+    # 目前flag表location字段不方便，所以这里先不动态修改缓存
     key = f'flag-info-{flag_id}'
-    if value := redis_cli.get(key):
+    if (value := redis_cli.get(key)) and refresh is not None:
         return pickle.loads(value)
+    if refresh is not None:
+        info: Flag = refresh
     else:
         info: Flag = dao.get_flag_info(g.user_id, flag_id)
-        if not info:
-            raise AppError(RespMsg.flag_not_exist)
-        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
-        return info
+    if not info:
+        raise AppError(RespMsg.flag_not_exist)
+    redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
+    return info
 
 
-def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
+def get_region_flag(get: GetFlagByMap) -> Tuple[int, List[dict]]:
     """根据定位位置获取区域内所有的点位"""
     code = dao.get_city_by_location(get.location) or 0
     if not code:
@@ -49,20 +54,19 @@ def get_region_flag(user_id: UUID, get: GetFlagByMap) -> Tuple[int, List[dict]]:
     if value := redis_cli.get(key):
         return code, json.loads(value)
     else:
-        value = [f.model_dump() for f in dao.get_flag_by_city(user_id, code, get)]
+        value = [f.model_dump() for f in dao.get_flag_by_city(code, get)]
         redis_cli.set(key, json.dumps(value), ex=CacheTimeout.region_flag)
         return code, value
 
 
-def set_statistics(user_id: Union[UUID, List[UUID]], flag_id: UUID, key: str):
+def set_statistics(user_id: UUID, flag_id: UUID, key: str, num: int):
     """
     设置flag更改状态,
     后面改成每n秒同步一次？事务一致性怎么保证？操作也放进缓存再做同步？
     """
-    if isinstance(user_id, (UUID, str)):
-        user_id = (user_id, )
     assert getattr(StatisticsType, key)
-    dao.set_statistics(flag_id, **{key: user_id})
+    mq_flag_statistics.put(f'{user_id}|{flag_id}|{key}|{num}')
+    return resp(RespMsg.success)
 
 
 @bp.route('/add', methods=['post'])
@@ -76,13 +80,14 @@ def add(flag: AddFlag):
     # 获取用户级别
     user_id = g.user_id
     user_class = get_user_info().user_class
+    code = dao.get_city_by_location(flag.location) or 0
     # 新建标记
     g.error_resp = RespMsg.flag_cant_cover_others_flag
     with db.auto_commit():
-        user_dao.add_flag(user_id)
+        get_user_info(user_dao.add_flag(user_id))
         flag_p = dao.add(user_id, flag, user_class)
         dao.insert_statistics(flag_p.id)
-
+        dao.update_app_illuminate(code, 1)
     return resp(RespMsg.success, flag_id=flag_p.id)
 
 
@@ -231,7 +236,7 @@ def get_flag_by_map(get: GetFlagByMap):
             'flags': [f.model_dump() for f in dao.get_flag_by_map(g.user_id, get)]})
     # 10公里-100公里2.25倍检索，返回以区县层级的嵌套
     else:
-        code, data = get_region_flag(g.user_id, get)
+        code, data = get_region_flag(get)
         return resp({'code': code, 'detail': False, 'flags': data})
 
 
@@ -251,13 +256,15 @@ def delete(delete_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         # 先删除，如果存在则更新用户表
-        if flag_pictures := dao.delete(user_id, delete_.id):
-            for p in flag_pictures.pictures:
+        if flag_update_info := dao.delete(user_id, delete_.id):
+            for p in flag_update_info.pictures:
                 up_oss.delete(FileType.flag_pic, p)
+            code = dao.get_city_by_location(flag_update_info.location) or 0
             # 删除用户表的计数器
-            user_dao.delete_flag(user_id)
+            get_user_info(user_dao.delete_flag(user_id))
             # 删除标记统计表
-            dao.delete_statistics(flag_pictures.id)
+            dao.delete_statistics(flag_update_info.id)
+            dao.update_app_illuminate(code, -1)
     return resp(RespMsg.success)
 
 
@@ -277,7 +284,7 @@ def add_fav(add_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         if flag_id := dao.add_fav(user_id, add_.id):
-            set_statistics(user_id, flag_id, StatisticsType.fav_users_up)
+            set_statistics(user_id, flag_id, StatisticsType.fav, 1)
     return resp(RespMsg.success)
 
 
@@ -289,7 +296,7 @@ def delete_fav(delete_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         if flag_id := dao.delete_fav(user_id, delete_.id):
-            set_statistics(user_id, flag_id, StatisticsType.fav_users_down)
+            set_statistics(user_id, flag_id, StatisticsType.fav, 0)
     return resp(RespMsg.success)
 
 
@@ -301,7 +308,7 @@ def add_like(like: FlagId):
     user_id = g.user_id
     is_like = dao.is_like(user_id, like.id)
     if not is_like:
-        set_statistics(user_id, like.id, StatisticsType.like_users_up)
+        set_statistics(user_id, like.id, StatisticsType.like, 1)
     return resp(RespMsg.success)
 
 
@@ -313,7 +320,7 @@ def delete_like(delete_: FlagId):
     user_id = g.user_id
     is_like = dao.is_like(user_id, delete_.id)
     if is_like:
-        set_statistics(user_id, delete_.id, StatisticsType.like_users_down)
+        set_statistics(user_id, delete_.id, StatisticsType.like, 0)
     return resp(RespMsg.success)
 
 
@@ -337,7 +344,7 @@ def add_comment(add_: AddComment):
         # 根评论才计数
         with db.auto_commit():
             if comment_id := dao.add_comment(user_id, add_, distance if add_.show_distance else None):
-                set_statistics(user_id, add_.flag_id, StatisticsType.comment_users_up)
+                set_statistics(user_id, add_.flag_id, StatisticsType.comment, 1)
 
     return resp(RespMsg.success, comment_id=comment_id)
 
@@ -383,10 +390,17 @@ def delete_comment(comment: CommentId):
         delete_ = dao.delete_comment(g.user_id, comment.id)
         # 如果是根评论就删除计数
         if delete_ and delete_.parent_id is None:
-            set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment_users_down)
+            set_statistics(g.user_id, delete_.flag_id, StatisticsType.comment, 0)
     return resp(RespMsg.success)
 
-# @bp.route('/get-city', methods=['post'])
-# @custom_jwt()
-# def get_city():
-#     return resp(location_code)
+
+@bp.route('/app-illuminate', methods=['post'])
+@custom_jwt()
+def app_illuminate():
+    key = 'app-illuminate'
+    if illuminate := redis_cli.get(key):
+        return pickle.loads(illuminate)
+    else:
+        illuminate = [i.model_dump() for i in dao.app_illuminate()]
+        redis_cli.set(key, pickle.dumps(illuminate), ex=CacheTimeout.app_illuminate)
+        return resp(illuminate)

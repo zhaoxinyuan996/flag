@@ -23,6 +23,8 @@ class CacheTimeout:
     region_flag = 1800
     # 标记信息
     flag_info = 120
+    # app点亮
+    app_illuminate = 180
 
 
 class InEnumMeta(EnumMeta):
@@ -54,12 +56,9 @@ class FileType:
 
 
 class StatisticsType:
-    like_users_up = 'like_users_up'
-    like_users_down = 'like_users_down'
-    fav_users_up = 'fav_users_up'
-    fav_users_down = 'fav_users_down'
-    comment_users_up = 'comment_users_up'
-    comment_users_down = 'comment_users_down'
+    like = 'like'
+    fav = 'fav'
+    comment = 'comment'
 
 
 class FlagNum:
