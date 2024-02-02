@@ -213,8 +213,6 @@ class CommentResp(Model):
 class FlagStatistics(Model):
     flag_id: Optional[UUID]
     like_users: Optional[dict]
-    fav_users: Optional[dict]
-    comment_users: Optional[dict]
     update_time: datetime
 
 

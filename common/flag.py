@@ -3,14 +3,13 @@ r"""
 """
 import logging
 from threading import Lock
-from typing import Dict, Tuple, Set
 from uuid import UUID
 
-from app.util import StatisticsUtil
 from util import db
 from app.base_dao import base_dao
+from app.util import StatisticsUtil
 from common.app_shadow import placeholder_app
-from util.msg_middleware import mq_flag_statistics
+from util.msg_middleware import mq_flag_like
 from util.wrappers import thread_lock
 
 
@@ -20,7 +19,7 @@ log = logging.getLogger(__name__)
 statistics_util = StatisticsUtil()
 
 
-class Statistics:
+class FlagLike:
     """
     定期刷新flag_statistics表，此表所有写操作都在这里完成
     num字段可以采用非严格模式，定时跑批更新精确num字段
@@ -40,5 +39,5 @@ class Statistics:
                 db.session.commit()
 
 
-statistics = Statistics()
-mq_flag_statistics.register_cb(statistics.add)
+flag_like = FlagLike()
+mq_flag_like.register_cb(flag_like.add)

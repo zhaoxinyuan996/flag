@@ -242,8 +242,16 @@ class JSONProvider(DefaultJSONProvider):
         return self._app.response_class(self.dumps(obj))
 
 
+class StatisticsType:
+    like = 'like'
+    fav = 'fav'
+    comment = 'comment'
+
+
 class StatisticsUtil:
     lock = Lock()
+    sync_keys = (StatisticsType.fav, StatisticsType.comment)
+    _async_keys = (StatisticsType.like, )
 
     def __init__(self):
         self.statistics_cache: Dict[UUID, Dict[str, Tuple[Set[UUID], Set[UUID]]]] = {}
@@ -267,9 +275,9 @@ class StatisticsUtil:
                 reject: Set[UUID] = del_users & add_users
                 del_users ^= reject
                 add_users ^= reject
-                if del_users:
+                if key == StatisticsType.like and del_users:
                     loop.extend((f"{key}_users = delete({key}_users, '{uuid}')" for uuid in del_users))
-                if add_users:
+                if key == StatisticsType.like and add_users:
                     loop.extend((f"{key}_users ['{uuid}']=current_timestamp::text" for uuid in add_users))
                 num_diff = len(add_users) - len(del_users)
                 if num_diff:

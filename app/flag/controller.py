@@ -15,7 +15,7 @@ from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
 from app.user.controller import get_user_info
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, StatisticsUtil
 from util.database import db, redis_cli
-from util.msg_middleware import mq_flag_statistics
+from util.msg_middleware import mq_flag_like
 from util.up_oss import up_oss
 
 module_name = os.path.basename(os.path.dirname(__file__))
@@ -59,12 +59,8 @@ def get_region_flag(get: GetFlagByMap) -> Tuple[int, List[dict]]:
 
 
 def set_statistics(user_id: UUID, flag_id: UUID, key: str, num: int):
-    """
-    设置flag更改状态,
-    后面改成每n秒同步一次？事务一致性怎么保证？操作也放进缓存再做同步？
-    """
-    assert getattr(StatisticsType, key)
-    mq_flag_statistics.put(f'{user_id}|{flag_id}|{key}|{num}')
+    """异步点赞"""
+    mq_flag_like.put(f'{user_id}|{flag_id}|{key}|{num}')
     return resp(RespMsg.success)
 
 
@@ -226,7 +222,6 @@ def get_flag_by_flag(get: GetFlagByFlag):
 @custom_jwt()
 def get_flag_by_map(get: GetFlagByMap):
     # 10公里内4倍检索，返回详细标记
-    print(get)
     if get.distance < 10000:
         get.distance *= 4
         return resp({
