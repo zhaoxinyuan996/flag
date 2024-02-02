@@ -119,26 +119,26 @@ class UserDao(Dao):
                f"current_timestamp, {vip_deadline}, '-infinity', current_timestamp, false) returning id")
         return self.execute(sql, user_id=user_id, nickname=ran_nickname(), avatar_name=default_avatar_filename)
 
-    def get_avatar_filename(self, user_id: UUID) -> Optional[str]:
+    def get_avatar_filename(self, user_id: UUID) -> str:
         sql = 'select avatar_name from users where id=:user_id'
         return self.execute(sql, user_id=user_id)
 
-    def set_avatar_filename(self, user_id: UUID, avatar_name: str) -> Optional[str]:
-        sql = 'update users set avatar_name=:avatar_name where id=:user_id returning avatar_name'
+    def set_avatar_filename(self, user_id: UUID, avatar_name: str) -> User:
+        sql = 'update users set avatar_name=:avatar_name where id=:user_id returning *'
         return self.execute(sql, user_id=user_id, avatar_name=avatar_name)
 
-    def set_userinfo(self, user_id: UUID, info: dict):
+    def set_userinfo(self, user_id: UUID, info: dict) -> User:
         settings = ','.join(f"{k}=:{k}" for k, v in info.items() if v is not None)
         sql = (f'update users set {settings} '
-               'where id=:user_id')
+               'where id=:user_id returning *')
         return self.execute(sql, user_id=user_id, **info)
 
-    def add_flag(self, user_id: UUID):
-        sql = 'update users set flag_num=flag_num+1 where id=:user_id'
+    def add_flag(self, user_id: UUID) -> User:
+        sql = 'update users set flag_num=flag_num+1 where id=:user_id returning *'
         return self.execute(sql, user_id=user_id)
 
-    def delete_flag(self, user_id: UUID):
-        sql = 'update users set flag_num=flag_num-1 where id=:user_id'
+    def delete_flag(self, user_id: UUID) -> User:
+        sql = 'update users set flag_num=flag_num-1 where id=:user_id returning *'
         return self.execute(sql, user_id=user_id)
 
 

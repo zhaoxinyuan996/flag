@@ -23,8 +23,6 @@ class CacheTimeout:
     region_flag = 1800
     # 标记信息
     flag_info = 120
-    # 标记点亮城市
-    app_illuminate = 300
 
 
 class InEnumMeta(EnumMeta):

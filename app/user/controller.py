@@ -2,12 +2,13 @@ import logging
 import os
 import pickle
 import re
+from typing import Optional
 from uuid import UUID
 
 import requests
 from app.user.dao import dao
 from flask import Blueprint, request, g
-from app.util import resp, custom_jwt, args_parse, refresh_user, api_lock, ApiLock, dcs_lock
+from app.util import resp, custom_jwt, args_parse, refresh_user, dcs_lock
 from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout, UserClass
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, QueryUser, User
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,19 +27,20 @@ password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 log = logging.getLogger(__name__)
 
 
-def get_user_info() -> User:
-    # 加一层g？
+def get_user_info(refresh: Optional[User] = None) -> User:
     # 加一层redis
     user_id = g.user_id
     key = f'user-info-{user_id}'
-    if value := redis_cli.get(key):
+    if (value := redis_cli.get(key)) and refresh is not None:
         return pickle.loads(value)
+    if refresh is not None:
+        info: User = refresh
     else:
         info: User = dao.get_user_info(user_id)
-        if not info:
-            raise AppError(RespMsg.user_not_exist)
-        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.user_info)
-        return info
+    if not info:
+        raise AppError(RespMsg.user_not_exist)
+    redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.user_info)
+    return info
 
 
 def exists_black_list(user_id: UUID, black_id: UUID) -> bool:
@@ -148,7 +150,7 @@ def upload_avatar():
     if old_filename != 'default.png':
         up_oss.delete(FileType.head_pic, old_filename)
     # 设置数据库，再上传
-    dao.set_avatar_filename(user_id, new_filename)
+    get_user_info(dao.set_avatar_filename(user_id, new_filename))
     up_oss.upload(FileType.head_pic, new_filename, b)
     return resp(RespMsg.success, avatar_name=new_filename)
 
@@ -161,7 +163,7 @@ def set_userinfo(set_: SetUserinfo):
     info = set_.model_dump()
     if not any(info.values()):
         return resp(RespMsg.success)
-    dao.set_userinfo(g.user_id, info)
+    get_user_info(dao.set_userinfo(g.user_id, info))
     return resp(RespMsg.success)
 
 
@@ -250,3 +252,10 @@ def unset_black(black: UserId):
 def black_list():
     """我的拉黑"""
     return resp([u.model_dump(include={'id', 'nickname'}) for u in dao.black_list(g.user_id)])
+
+
+@bp.route('/allow-flag-num', methods=['post'])
+@custom_jwt()
+def allow_flag_num():
+    """我的拉黑"""
+    return resp(get_user_info().allow_flag_num)

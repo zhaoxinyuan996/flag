@@ -3,7 +3,7 @@ from uuid import UUID
 from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, OpenFlag, \
-    AddFlag, GetFlagByUser, FlagPictures, AddComment, DeleteComment, Flag, AppIlluminate
+    AddFlag, GetFlagByUser, FlagUpdateInfo, AddComment, DeleteComment, Flag, AppIlluminate
 
 
 class FlagDao(Dao):
@@ -21,20 +21,22 @@ class FlagDao(Dao):
         sql = 'select pictures from flag where id=:flag_id and user_id=:user_id'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
-    def add(self, user_id: UUID, flag: AddFlag, user_class: int) -> Optional[FlagPictures]:
+    def add(self, user_id: UUID, flag: AddFlag, user_class: int) -> Optional[FlagUpdateInfo]:
         sql = ('insert into flag '
                '(id, user_id, location, name, content, user_class, type, status, create_time, update_time, pictures,'
                'ico_name, dead_line) '
                'values(gen_random_uuid(), :user_id, :location, :name, :content, :user_class, :type, :status, '
-               'current_timestamp, current_timestamp, array[]::text[], :ico_name, :dead_line) returning id, pictures')
+               'current_timestamp, current_timestamp, array[]::text[], :ico_name, :dead_line) '
+               f"returning id, pictures, {Dao.location('location', 'location')}")
         return self.execute(sql, user_id=user_id, content=flag.content, status=flag.status, name=flag.name,
                             user_class=user_class, location=point(flag.location), type=flag.type,
                             ico_name=flag.ico_name, dead_line=flag.dead_line)
 
-    def update(self, user_id: UUID, flag: UpdateFlag) -> Optional[FlagPictures]:
+    def update(self, user_id: UUID, flag: UpdateFlag) -> Optional[FlagUpdateInfo]:
         sql = ('update flag set name=:name, content=:content, type=:type, status=:status, '
                'ico_name=:ico_name, update_time=current_timestamp '
-               'where id=:id and user_id=:user_id returning id, pictures')
+               'where id=:id and user_id=:user_id '
+               f"returning id, pictures, {Dao.location('location', 'location')}")
         return self.execute(sql, id=flag.id, user_id=user_id, name=flag.name, content=flag.content, type=flag.type,
                             status=flag.status, ico_name=flag.ico_name)
 
@@ -97,8 +99,9 @@ class FlagDao(Dao):
         sql = 'update flag set type=:flag_type where id=:flag_id and user_id=:user_id'
         self.execute(sql, user_id=user_id, flag_id=flag_id, flag_type=flag_type)
 
-    def delete(self, user_id: UUID, flag_id: UUID) -> Optional[FlagPictures]:
-        sql = 'delete from flag where user_id=:user_id and id=:flag_id returning id, pictures'
+    def delete(self, user_id: UUID, flag_id: UUID) -> Optional[FlagUpdateInfo]:
+        sql = ('delete from flag where user_id=:user_id and id=:flag_id '
+               f"returning id, pictures, {Dao.location('location', 'location')}")
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def is_like(self, user_id: UUID, flag_id: UUID) -> Optional[bool]:
@@ -175,12 +178,12 @@ class FlagDao(Dao):
 
     def app_illuminate(self) -> List[AppIlluminate]:
         # 目前看城市没有重名
-        sql = ('with s1 as (select a.name, f.fence from adcode a inner join fences f on a.adcode=f.adcode '
-               'where "rank"=2 and not virtual) '
-               'select s1.name city, count(1) flag_num from flag f inner join s1 on ST_Contains(s1.fence,f.location) '
-               'group by s1.name order by flag_num desc')
-        print(self.text(sql))
+        sql = 'select code, city, flag_num, update_time from app_illuminate order by flag_num desc limit 10'
         return self.execute(sql)
+
+    def update_app_illuminate(self, code: int, diff: int):
+        sql = f'update app_illuminate set flag_num=flag_num+{diff}, update_time=current_timestamp where code=:code'
+        self.execute(sql, code=code)
 
 
 dao: FlagDao = FlagDao()

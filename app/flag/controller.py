@@ -2,7 +2,7 @@ import json
 import os
 import logging
 import pickle
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 from uuid import UUID
 
 from app.user.dao import dao as user_dao
@@ -13,8 +13,7 @@ from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
     AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
 from app.user.controller import get_user_info
-from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, api_lock, \
-    ApiLock
+from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage
 from util.database import db, redis_cli
 from util.msg_middleware import mq_flag_statistics
 from util.up_oss import up_oss
@@ -29,16 +28,19 @@ log = logging.getLogger(__name__)
 #     location_code = json.loads(city_file.read())
 
 
-def get_flag_info(flag_id: UUID) -> Flag:
+def get_flag_info(flag_id: UUID, refresh: Optional[Flag] = None) -> Flag:
+    # 目前flag表location字段不方便，所以这里先不动态修改缓存
     key = f'flag-info-{flag_id}'
-    if value := redis_cli.get(key):
+    if (value := redis_cli.get(key)) and refresh is not None:
         return pickle.loads(value)
+    if refresh is not None:
+        info: Flag = refresh
     else:
         info: Flag = dao.get_flag_info(g.user_id, flag_id)
-        if not info:
-            raise AppError(RespMsg.flag_not_exist)
-        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
-        return info
+    if not info:
+        raise AppError(RespMsg.flag_not_exist)
+    redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
+    return info
 
 
 def get_region_flag(get: GetFlagByMap) -> Tuple[int, List[dict]]:
@@ -77,13 +79,14 @@ def add(flag: AddFlag):
     # 获取用户级别
     user_id = g.user_id
     user_class = get_user_info().user_class
+    code = dao.get_city_by_location(flag.location) or 0
     # 新建标记
     g.error_resp = RespMsg.flag_cant_cover_others_flag
     with db.auto_commit():
-        user_dao.add_flag(user_id)
+        get_user_info(user_dao.add_flag(user_id))
         flag_p = dao.add(user_id, flag, user_class)
         dao.insert_statistics(flag_p.id)
-
+        dao.update_app_illuminate(code, 1)
     return resp(RespMsg.success, flag_id=flag_p.id)
 
 
@@ -252,13 +255,15 @@ def delete(delete_: FlagId):
     user_id = g.user_id
     with db.auto_commit():
         # 先删除，如果存在则更新用户表
-        if flag_pictures := dao.delete(user_id, delete_.id):
-            for p in flag_pictures.pictures:
+        if flag_update_info := dao.delete(user_id, delete_.id):
+            for p in flag_update_info.pictures:
                 up_oss.delete(FileType.flag_pic, p)
+            code = dao.get_city_by_location(flag_update_info.location) or 0
             # 删除用户表的计数器
-            user_dao.delete_flag(user_id)
+            get_user_info(user_dao.delete_flag(user_id))
             # 删除标记统计表
-            dao.delete_statistics(flag_pictures.id)
+            dao.delete_statistics(flag_update_info.id)
+            dao.update_app_illuminate(code, -1)
     return resp(RespMsg.success)
 
 
@@ -391,10 +396,4 @@ def delete_comment(comment: CommentId):
 @bp.route('/app-illuminate', methods=['post'])
 @custom_jwt()
 def app_illuminate():
-    key = f'app_illuminate'
-    if value := redis_cli.get(key):
-        return resp(pickle.loads(value))
-    else:
-        info = [i.model_dump() for i in dao.app_illuminate()]
-        redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.app_illuminate)
-        return resp(info)
+    return resp([i.model_dump() for i in dao.app_illuminate()])

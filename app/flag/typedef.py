@@ -94,9 +94,10 @@ class UpdateFlag(Model):
     ico_name: ICO_NAME
 
 
-class FlagPictures(Model):
+class FlagUpdateInfo(Model):
     id: UUID
     pictures: List[str]
+    location: LOCATION
 
 
 class GetFlagByOrderField(OrderField):
@@ -218,5 +219,7 @@ class FlagStatistics(Model):
 
 
 class AppIlluminate(Model):
+    code: int
     city: str
     flag_num: int
+    update_time: datetime
