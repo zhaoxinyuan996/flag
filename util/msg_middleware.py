@@ -38,7 +38,7 @@ class MqBase:
         try:
             self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=body)
         except Exception as e:
-            log.error(e)
+            log.error(f'put {self.queue_name}: {e}')
             self.__init__()
             self.channel.basic_publish(exchange='', routing_key=self.queue_name, body=body)
 
@@ -48,7 +48,7 @@ class MqBase:
             try:
                 self.channel.start_consuming()
             except Exception as e:
-                log.error(e)
+                log.error(f'loop {self.queue_name}: {e}')
                 self.__init__()
             finally:
                 log.warning('loopppppppppppppppp')
