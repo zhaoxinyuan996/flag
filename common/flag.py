@@ -38,7 +38,6 @@ class Statistics:
 
     @thread_lock(lock)
     def flush(self):
-        log.warning('flush')
         all_sql = []
         for flag_id, kv in self.statistics_cache.items():
             loop = []

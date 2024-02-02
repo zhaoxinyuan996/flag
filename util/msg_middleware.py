@@ -51,7 +51,6 @@ class MqBase:
                 log.error(f'loop {self.queue_name}: {e}')
                 self.__init__()
             finally:
-                log.warning('loopppppppppppppppp')
                 sleep(1)
 
     @staticmethod
