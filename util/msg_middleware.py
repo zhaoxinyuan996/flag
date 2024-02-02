@@ -49,8 +49,9 @@ class MqBase:
                 self.channel.start_consuming()
             except Exception as e:
                 log.error(e)
-                sleep(5)
                 self.__init__()
+            finally:
+                sleep(5)
 
     @staticmethod
     def callback(ch, method, properties, body: bytes):
