@@ -1,7 +1,11 @@
+r"""
+本文件的id类型声明为uuid，但是实际是str类型
+"""
 import logging
+import pickle
+from functools import wraps
 from time import sleep
 from typing import Callable
-from uuid import UUID
 import pika
 from util import config
 
@@ -12,6 +16,15 @@ log = logging.getLogger(__name__)
 class QueueType:
     local_by_ip: str = 'local_by_ip'
     flag_statistics: str = 'flag_statistics'
+    user_message: str = 'user_message'
+
+
+def cb_log(func):
+    @wraps(func)
+    def f(self: 'MqBase', ch, method, properties, body: bytes):
+        log.info(f'{self.queue_name} callback: {body}')
+        return func(self, ch, method, properties, body)
+    return f
 
 
 class MqBase:
@@ -61,23 +74,30 @@ class MqBase:
 class MqLocal(MqBase):
     queue_name = QueueType.local_by_ip
 
+    @cb_log
     def callback(self, ch, method, properties, body: bytes):
-        log.info(f'{self.queue_name} callback: {body}')
         user_id, host = body.decode().split('|')
-        self.cb(UUID(user_id), host)
+        self.cb(user_id, host)
 
 
 class MqFlagLike(MqBase):
     queue_name = QueueType.flag_statistics
 
+    @cb_log
     def callback(self, ch, method, properties, body: bytes):
-        log.info(f'{self.queue_name} callback: {body}')
         user_id, flag_id, key, num = body.decode().split('|')
-        user_id = UUID(user_id)
-        flag_id = UUID(flag_id)
         num = int(num)
         self.cb(user_id, flag_id, key, num)
 
 
+class MqUserMessage(MqBase):
+    queue_name = QueueType.user_message
+
+    @cb_log
+    def callback(self, ch, method, properties, body: bytes):
+        self.cb(pickle.loads(body))
+
+
 mq_local = MqLocal()
 mq_flag_like = MqFlagLike()
+mq_user_msg = MqUserMessage()

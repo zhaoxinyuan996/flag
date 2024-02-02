@@ -5,11 +5,12 @@ import pickle
 from typing import List, Tuple, Union, Optional
 from uuid import UUID
 
+from app.message.controller import push_message
 from app.user.dao import dao as user_dao
 from app.flag.dao import dao
 from flask import Blueprint, request, g
 from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
-    StatisticsType, AppError
+    StatisticsType, AppError, UserMessageType
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
     AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
 from app.user.controller import get_user_info
@@ -279,12 +280,15 @@ def add_fav(add_: FlagId):
     with db.auto_commit():
         if flag_id := dao.add_fav(user_id, add_.id):
             dao.execute(statistics_util.auto_exec(g.user_id, flag_id, StatisticsType.fav, 1))
+    flag = get_flag_info(add_.id)
+    content = f'{get_user_info().nickname} 收藏了您的标记 {flag.name}'
+    push_message(user_id, flag.user_id, UserMessageType.fav, content, flag_id=flag.id)
     return resp(RespMsg.success)
 
 
-@bp.route('/delete-fav', methods=['post'])
 @args_parse(FlagId)
 @custom_jwt()
+@bp.route('/delete-fav', methods=['post'])
 def delete_fav(delete_: FlagId):
     """删除收藏"""
     user_id = g.user_id
@@ -303,6 +307,9 @@ def add_like(like: FlagId):
     is_like = dao.is_like(user_id, like.id)
     if not is_like:
         set_statistics(user_id, like.id, StatisticsType.like, 1)
+        flag = get_flag_info(like.id)
+        content = f'{get_user_info().nickname} 点赞了您的标记 {flag.name}'
+        push_message(user_id, flag.user_id, UserMessageType.like, content, flag_id=flag.id)
     return resp(RespMsg.success)
 
 
@@ -330,15 +337,20 @@ def add_comment(add_: AddComment):
         return resp(RespMsg.flag_not_exist)
     # 回复的用户
     if add_.parent_id:
-        ask_user_nickname = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.parent_id)
-        if not ask_user_nickname:
+        ask_user = dao.get_nickname_by_comment_id(user_id, add_.flag_id, add_.parent_id)
+        if not ask_user:
             return resp(RespMsg.comment_not_exist)
         comment_id = dao.add_comment(user_id, add_, distance if add_.show_distance else None)
+        content = f'{get_user_info().nickname} 在 {get_flag_info(add_.flag_id).name} 回复了您的评论'
+        push_message(user_id, ask_user.id, UserMessageType.comment, content, flag_id=add_.flag_id)
     else:
         # 根评论才计数
         with db.auto_commit():
             if comment_id := dao.add_comment(user_id, add_, distance if add_.show_distance else None):
                 dao.execute(statistics_util.auto_exec(user_id, add_.flag_id, StatisticsType.comment, 1))
+                flag = get_flag_info(add_.flag_id)
+                content = f'{get_user_info().nickname} 评论了您的标记 {flag.name}'
+                push_message(user_id, flag.user_id, UserMessageType.comment, content, flag_id=flag.id)
 
     return resp(RespMsg.success, comment_id=comment_id)
 

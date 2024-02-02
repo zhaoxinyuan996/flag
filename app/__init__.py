@@ -7,7 +7,6 @@ from flask.globals import g
 from flask_jwt_extended import JWTManager
 from pydantic import ValidationError
 from sqlalchemy import exc
-from . import test, user, flag, message
 from app.constants import RespMsg, AppError, JwtConfig
 from app.util import resp, JSONProvider, werkzeug_profile
 from util.config import redis_uri, db_uri, dev, config
@@ -90,15 +89,18 @@ def create_app() -> Flask:
     # 暂时的方法是后端判断时间，距离10分钟过期时候就返回一个新的token
     # _app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=JwtConfig.jwt_refresh_minutes)
     _app.json = JSONProvider(_app)
+
+    # 注册蓝图
+    from . import test, user, flag, message
+    _app.register_blueprint(test.bp)
+    _app.register_blueprint(user.bp)
+    _app.register_blueprint(flag.bp)
+    _app.register_blueprint(message.bp)
     return _app
 
 
 app = create_app()
-# 注册蓝图
-app.register_blueprint(test.bp)
-app.register_blueprint(user.bp)
-app.register_blueprint(flag.bp)
-app.register_blueprint(message.bp)
+
 # redis
 redis_cli.init_app(app)
 # pg

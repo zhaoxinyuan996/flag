@@ -1,34 +1,27 @@
 import os
-from functools import partial
+import pickle
 from uuid import UUID
 
 from flask import Blueprint
 from app.message.dao import dao
 from app.message.typedef import AskNoticeReq
-from app.user.controller import get_user_info
-from app.util import custom_jwt, args_parse, resp
-from util.database import db
+from app.util import custom_jwt, args_parse, resp, UserMessage
+from util.msg_middleware import mq_user_msg
 
 module_name = os.path.basename(os.path.dirname(__file__))
 bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 
-def _push_message(user_id: UUID, msg: str):
-    from app import app
-
-    with app.app_context():
-        db.session.commit()
-
-
-def push_message(user_id: UUID, msg: str):
-    """写一条消息到库里"""
-    return partial(_push_message, user_id, msg)
+def push_message(send_id: UUID, receive_id: UUID,
+                 type_: int, content: str = None, flag_id: UUID = None, extra: str = ''):
+    mq_user_msg.put(pickle.dumps(UserMessage(send_id, receive_id, flag_id, type_, content, extra)))
 
 
 @bp.route('/ask-notice', methods=['post'])
 @args_parse(AskNoticeReq)
 @custom_jwt()
 def ask_notice(ask: AskNoticeReq):
+    from app.user.controller import get_user_info
     return resp([n.model_dump() for n in dao.ask_notice(ask.id, get_user_info().user_class)])
 
 
