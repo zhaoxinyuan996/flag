@@ -58,7 +58,7 @@ class FlagDao(Dao):
         if user_id:
             condition = f' ({self.not_hide} and not {self.anonymous} and f.user_id=:user_id) '
         else:
-            condition = ' (user_id=:private_id) '
+            condition = ' (f.user_id=:private_id) '
         sql = (f'select {self.fields}, '
                f"exist(like_users, '{private_id}') is_like, fav.flag_id is not null is_fav, "
                f'like_num, fav_num, comment_num '
