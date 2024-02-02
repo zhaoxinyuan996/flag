@@ -178,7 +178,8 @@ class FlagDao(Dao):
 
     def app_illuminate(self) -> List[AppIlluminate]:
         # 目前看城市没有重名
-        sql = 'select code, city, flag_num, update_time from app_illuminate order by flag_num desc limit 10'
+        sql = (f"select code, city, {Dao.location('location', 'location')}, flag_num, update_time "
+               f'from app_illuminate where code!=0 order by flag_num desc limit 10')
         return self.execute(sql)
 
     def update_app_illuminate(self, code: int, diff: int):

@@ -221,5 +221,6 @@ class FlagStatistics(Model):
 class AppIlluminate(Model):
     code: int
     city: str
+    location: LOCATION
     flag_num: int
     update_time: datetime

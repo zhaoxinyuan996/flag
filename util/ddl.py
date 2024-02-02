@@ -196,20 +196,22 @@ update_time timestamp not null
 create table app_illuminate(
 code int8 not null,
 city text not null,
+location geometry(geometry,4326) not null,
 flag_num int not null,
 update_time timestamp not null
 );
 CREATE INDEX app_illuminate_adcode_index on app_illuminate (code);
 
-insert into app_illuminate(code, city, flag_num, update_time)
-with s1 as (select a.code, a.name, f.fence from adcode a inner join fences f on a.adcode=f.adcode 
+insert into app_illuminate(code, city, location, flag_num, update_time)
+with s1 as (select a.code, a.name, a.center location, f.fence from adcode a inner join fences f on a.adcode=f.adcode 
 where "rank"=2 and not virtual) 
-select s1.code, s1.name city, count(f.id) flag_num, current_timestamp update_time from flag f 
-right join s1 on ST_Contains(s1.fence,f.location) group by s1.code, s1.name;
+select s1.code, s1.name city, s1.location, count(f.id) flag_num, current_timestamp update_time from flag f 
+right join s1 on ST_Contains(s1.fence,f.location) group by s1.code, s1.name,s1.location;
 
-insert into app_illuminate(code, city, flag_num, update_time)
+insert into app_illuminate(code, city, location, flag_num, update_time)
 with s1 as (select a.code, a.name, f.fence from adcode a inner join fences f on a.adcode=f.adcode 
 where "rank"=2 and not virtual) 
-select 0 code, '国外' city, count(f.id) flag_num, current_timestamp update_time from flag f 
+select 0 code, '国外' city, 'SRID=4326;point (0 0)' location, count(f.id) flag_num, current_timestamp update_time 
+from flag f 
 left join s1 on ST_Contains(s1.fence,f.location)  group by s1.code, s1.name having s1.code is null and s1.name is null;
 '''
