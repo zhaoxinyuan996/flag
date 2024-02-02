@@ -56,8 +56,8 @@ class PictureStorageSet:
 def refresh_user(user_id: UUID):
     """刷新用户的最后活跃时间和网络ip的解析地址"""
     remote_ip = request.headers.get('X-Forwarded-For', '').split(',')[0] or request.remote_addr
-    # if remote_ip == '127.0.0.1': todo
-    #     return
+    if remote_ip == '127.0.0.1':
+        return
     from util.msg_middleware import mq_local
     mq_local.put(f'{user_id}|{remote_ip}')
 
