@@ -45,33 +45,36 @@ class FlagDao(Dao):
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def get_flag_by_flag(self, user_id: UUID, flag_id: UUID) -> Optional[OpenFlag]:
-        condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
+        condition = f'(({self.not_hide} and not {self.anonymous}) or f.user_id=:user_id) '
         sql = (f'select {self.fields}, '
-               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f"exist(like_users, '{user_id}') is_like, fav.flag_id is not null is_fav, "
                f'like_num, fav_num, comment_num '
                f'from flag f inner join flag_statistics s on f.id=s.flag_id '
+               f'left join fav on f.id=fav.flag_id and fav.user_id=:user_id '
                f'where f.id=:flag_id and {condition} and s.flag_id=:flag_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def get_flag_by_user(self, user_id: Optional[UUID], private_id: UUID, get: GetFlagByUser) -> List[OpenFlag]:
         if user_id:
-            condition = f' ({self.not_hide} and not {self.anonymous} and user_id=:user_id) '
+            condition = f' ({self.not_hide} and not {self.anonymous} and f.user_id=:user_id) '
         else:
             condition = ' (user_id=:private_id) '
         sql = (f'select {self.fields}, '
-               f"exist(like_users, '{private_id}') is_like, exist(fav_users, '{private_id}') is_fav, "
+               f"exist(like_users, '{private_id}') is_like, fav.flag_id is not null is_fav, "
                f'like_num, fav_num, comment_num '
                f'from flag f inner join flag_statistics s on f.id=s.flag_id '
+               f'left join fav on f.id=fav.flag_id and fav.user_id=:private_id '
                f'where {condition} order by {get.order_by}')
         return self.execute(sql, user_id=user_id, private_id=private_id)
 
     def get_flag_by_map(self, user_id: UUID, get: GetFlagByMap) -> List[OpenFlag]:
-        condition = f'(({self.not_hide} and not {self.anonymous}) or user_id=:user_id) '
+        condition = f'(({self.not_hide} and not {self.anonymous}) or f.user_id=:user_id) '
         sql = (f'select {self.fields}, u.id user_id, u.nickname, u.avatar_name, '
-               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f"exist(like_users, '{user_id}') is_like, fav.flag_id is not null is_fav, "
                f'like_num, fav_num, comment_num '
                f'from flag f inner join users u on f.user_id=u.id '
                f'inner join flag_statistics s on f.id=s.flag_id '
+               f'left join fav on f.id=fav.flag_id and fav.user_id=:user_id '
                f'where {condition} and type=:type '
                "and ST_Distance(ST_GeographyFromText(:location), "
                'ST_GeographyFromText(ST_AsText(f.location)))<:distance')
@@ -110,7 +113,7 @@ class FlagDao(Dao):
 
     def get_fav(self, user_id: UUID) -> List[OpenFlag]:
         sql = (f'select {self.fields}, '
-               f"exist(like_users, '{user_id}') is_like, exist(fav_users, '{user_id}') is_fav, "
+               f"exist(like_users, '{user_id}') is_like, true is_fav, "
                f'like_num, fav_num, comment_num '
                f'from fav left join flag f on fav.flag_id=f.id '
                'left join flag_statistics s on fav.flag_id=s.flag_id '
@@ -167,7 +170,7 @@ class FlagDao(Dao):
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def insert_statistics(self, flag_id: UUID):
-        sql = ('insert into flag_statistics (flag_id, like_users, fav_users, comment_users, update_time) '
+        sql = ('insert into flag_statistics (flag_id, like_users, update_time) '
                "values(:flag_id, '', '', '', current_timestamp)")
         self.execute(sql, flag_id=flag_id)
 

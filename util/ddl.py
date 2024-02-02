@@ -182,8 +182,6 @@ create_time timestamp
 create table flag_statistics(
 flag_id uuid not null primary key,
 like_users hstore not null default '',
-fav_users hstore not null default '',
-comment_users hstore not null default '',
 like_num int not null default 0,
 fav_num int not null default 0,
 comment_num int not null default 0,
