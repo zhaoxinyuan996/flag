@@ -10,12 +10,13 @@ from uuid import UUID
 import ujson
 from flask.json.provider import DefaultJSONProvider
 from pydantic import BaseModel
-from typing import Any, Optional, Callable, Union, Set, Dict
+from typing import Any, Optional, Callable, Union, Set, Dict, Tuple, List
 from flask_jwt_extended import verify_jwt_in_request, create_access_token
 from flask_jwt_extended.view_decorators import LocationType
 from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from util.database import redis_cli
+from util.wrappers import thread_lock
 from .base_dao import build_model
 from .constants import Message, JwtConfig, DCSLockError
 from util.config import dev
@@ -239,6 +240,50 @@ class JSONProvider(DefaultJSONProvider):
 
     def response(self, obj: Any) -> Response:
         return self._app.response_class(self.dumps(obj))
+
+
+class StatisticsUtil:
+    lock = Lock()
+
+    def __init__(self):
+        self.statistics_cache: Dict[UUID, Dict[str, Tuple[Set[UUID], Set[UUID]]]] = {}
+
+    def add(self, user_id: UUID, flag_id: UUID, key: str, num: int):
+        # num是0则删除，num是1则新增
+        # 嵌套了好几层，就不用default dict了
+        if flag_id not in self.statistics_cache:
+            self.statistics_cache[flag_id] = {}
+        if key not in self.statistics_cache[flag_id]:
+            self.statistics_cache[flag_id][key] = (set(), set())
+        self.statistics_cache[flag_id][key][num].add(user_id)
+
+    def build_flag_statistics_sql(self) -> List[str]:
+        all_sql = []
+        for flag_id, kv in self.statistics_cache.items():
+            loop = []
+            for key, tuples in kv.items():
+                # 剔除共有的user_id
+                del_users, add_users = tuples
+                reject: Set[UUID] = del_users & add_users
+                del_users ^= reject
+                add_users ^= reject
+                if del_users:
+                    loop.extend((f"{key}_users = delete({key}_users, '{uuid}')" for uuid in del_users))
+                if add_users:
+                    loop.extend((f"{key}_users ['{uuid}']=current_timestamp::text" for uuid in add_users))
+                num_diff = len(add_users) - len(del_users)
+                if num_diff:
+                    loop.append(f"{key}_num={key}_num+{num_diff} ")
+            if loop:
+                all_sql.append(f"update flag_statistics set {','.join(loop)}")
+        self.statistics_cache.clear()
+        return all_sql
+
+    @thread_lock(lock)
+    def auto_exec(self, user_id: UUID, flag_id: UUID, key: str, num: int):
+        """同步接口保证事务一致性"""
+        self.add(user_id, flag_id, key, num)
+        return ';'.join(self.build_flag_statistics_sql())
 
 
 class Model(BaseModel):

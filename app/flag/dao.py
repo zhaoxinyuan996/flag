@@ -176,6 +176,38 @@ class FlagDao(Dao):
         sql = 'delete from flag_statistics where flag_id=:flag_id'
         self.execute(sql, flag_id=flag_id)
 
+    def set_statistics(self,
+                       flag_id: UUID,
+                       like_users_up: List[UUID] = (),
+                       like_users_down: List[UUID] = (),
+                       fav_users_up: List[UUID] = (),
+                       fav_users_down: List[UUID] = (),
+                       comment_users_up: List[UUID] = (),
+                       comment_users_down: List[UUID] = (),
+                       ):
+        loop = []
+        for uuid in like_users_up:
+            loop.append(f" like_users['{uuid}']=current_timestamp::text ")
+        for uuid in like_users_down:
+            loop.append(f''' like_users = delete(like_users, '{uuid}') ''')
+        for uuid in fav_users_up:
+            loop.append(f" fav_users['{uuid}']=current_timestamp::text ")
+        for uuid in fav_users_down:
+            loop.append(f''' fav_users = delete(fav_users, '{uuid}') ''')
+        for uuid in comment_users_up:
+            loop.append(f" comment_users['{uuid}']=current_timestamp::text ")
+        for uuid in comment_users_down:
+            loop.append(f''' comment_users = delete(comment_users, '{uuid}') ''')
+        like_diff = len(like_users_up) - len(like_users_down)
+        fav_diff = len(fav_users_up) - len(fav_users_down)
+        comment_diff = len(comment_users_up) - len(comment_users_down)
+        sql = (f"update flag_statistics set {','.join(loop)} "
+               f", like_num={like_diff}+like_num "
+               f", fav_num={fav_diff}+fav_num "
+               f", comment_num={comment_diff}+comment_num "
+               f"where flag_id=:flag_id")
+        self.execute(sql, flag_id=flag_id)
+
     def app_illuminate(self) -> List[AppIlluminate]:
         # 目前看城市没有重名
         sql = (f"select code, city, {Dao.location('location', 'location')}, flag_num, update_time "

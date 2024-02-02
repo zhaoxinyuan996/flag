@@ -20,7 +20,7 @@ def flush_before_exit(signum, frame):
 # 注册定时刷新任务
 logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
 scheduler = BackgroundScheduler()
-scheduler.add_job(statistics.flush, 'interval', seconds=3)
+scheduler.add_job(statistics.flush, 'interval', seconds=1)
 scheduler.start()
 
 if __name__ == '__main__':
