@@ -25,8 +25,9 @@ class MessageDao(Dao):
 
     def receive_message(self, user_id: UUID,  id_: int) -> List[Message]:
         last = '-7days'
-        sql = ('update message set read=true where receive_id=:user_id and id>:id and '
-               '(not read or create_time>current_timestamp + :last) returning * order by id desc')
+        sql = ('with s1 as (update message set read=true where receive_id=:user_id and id>:id and '
+               '(not read or create_time>current_timestamp + :last) returning *)'
+               'select * from s1 order by id desc')
         return self.execute(sql, id=id_, user_id=user_id, last=last)
 
     def clean_timeout_message(self):
