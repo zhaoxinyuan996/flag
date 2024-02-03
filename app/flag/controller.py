@@ -213,6 +213,10 @@ def get_flag_by_user(get: GetFlagByUser):
 @args_parse(GetFlagByFlag)
 @custom_jwt()
 def get_flag_by_flag(get: GetFlagByFlag):
+    try:
+        get.id = UUID(get.id)
+    except ValueError:
+        return resp(RespMsg.id_illegal, -1)
     if flag := dao.get_flag_by_flag(g.user_id, get.id):
         return resp(flag.model_dump())
     return resp(RespMsg.flag_not_exist)

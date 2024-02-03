@@ -18,7 +18,11 @@ class MessageDao(Dao):
         self.execute(sql, send_id=send_id, receive_id=receive_id, flag_id=flag_id,
                      extra=extra, type_=type_, content=content)
 
-    def receive_message(self,user_id: UUID,  id_: int) -> List[Message]:
+    def latest_message_id(self, user_id: UUID) -> Optional[int]:
+        sql = 'select max(id) id from message where receive_id=:user_id and not read'
+        return self.execute(sql, user_id=user_id)
+
+    def receive_message(self, user_id: UUID,  id_: int) -> List[Message]:
         last = '-7days'
         sql = ('update message set read=true where receive_id=:user_id and id>:id and '
                '(not read or create_time>current_timestamp + :last) returning *')

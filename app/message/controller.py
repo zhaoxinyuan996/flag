@@ -25,6 +25,14 @@ def ask_notice(ask: AskNoticeReq):
     return resp([n.model_dump() for n in dao.ask_notice(ask.id, get_user_info().user_class)])
 
 
+@bp.route('/latest-message-id', methods=['post'])
+@custom_jwt()
+def latest_message_id():
+    """获取最新的未读消息id"""
+    max_id = dao.latest_message_id(g.user_id) or -1
+    return resp(max_id)
+
+
 @bp.route('/receive-message', methods=['post'])
 @args_parse(ReceiveMessage)
 @custom_jwt()

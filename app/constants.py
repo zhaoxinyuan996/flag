@@ -144,6 +144,10 @@ class RespMsg:
         'zh': '大小超限',
         'en': 'too large'
     })
+    id_illegal = RespMessage({
+        'zh': '非法id',
+        'en': 'illegal id'
+    })
     flag_not_exist = RespMessage({
         'zh': '标记不存在',
         'en': 'flag not exist',
