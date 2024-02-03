@@ -4,12 +4,13 @@ import pickle
 import re
 from typing import Optional
 from uuid import UUID
-
 import requests
 from app.user.dao import dao
 from flask import Blueprint, request, g
+from app.message.controller import push_message
 from app.util import resp, custom_jwt, args_parse, refresh_user, dcs_lock
-from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout, UserClass
+from app.constants import RespMsg, allow_picture_type, user_picture_size, FileType, AppError, CacheTimeout, UserClass, \
+    UserMessageType
 from app.user.typedef import SignIn, SignUp, UserId, SignWechat, SetUserinfo, QueryUser, User
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
@@ -178,6 +179,7 @@ def follow_add(user: UserId):
     if not dao.exist(user.id):
         return resp(RespMsg.user_not_exist)
     dao.follow_add(user_id, user.id)
+    push_message(user_id, user.id, UserMessageType.follow)
     return resp(RespMsg.success)
 
 

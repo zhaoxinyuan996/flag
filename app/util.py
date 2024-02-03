@@ -18,7 +18,7 @@ from werkzeug.middleware.profiler import ProfilerMiddleware
 from util.database import redis_cli
 from util.wrappers import thread_lock
 from .base_dao import build_model
-from .constants import Message, JwtConfig, DCSLockError
+from .constants import RespMessage, JwtConfig, DCSLockError
 from util.config import dev
 from flask import request, jsonify, g, Response
 
@@ -178,7 +178,7 @@ def custom_jwt(
 
 
 def resp(msg: Any, code: int = 0, **kwargs):
-    if isinstance(msg, Message):
+    if isinstance(msg, RespMessage):
         _msg = msg[g.language]
         code = msg.get('code', code)
         return jsonify({'msg': _msg, 'code': code, **kwargs})
@@ -292,6 +292,21 @@ class StatisticsUtil:
         """同步接口保证事务一致性"""
         self.add(user_id, flag_id, key, num)
         return ';'.join(self.build_flag_statistics_sql())
+
+
+class UserMessage:
+    __slots__ = ('send_id', 'receive_id', 'flag_id', 'type_', 'content', 'extra')
+
+    def __init__(self, send_id: UUID, receive_id: UUID, flag_id: Optional[UUID], type_: int, content: str, extra: str):
+        self.send_id = send_id
+        self.receive_id = receive_id
+        self.flag_id = flag_id
+        self.type_ = type_
+        self.content = content
+        self.extra = extra
+
+    def __hash__(self):
+        return hash(f'{self.send_id}{self.receive_id}{self.flag_id}{self.content}')
 
 
 class Model(BaseModel):

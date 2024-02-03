@@ -138,13 +138,13 @@ d8 = '''
 create table message(
 id serial primary key,
 type int not null,
-send_id int not null,
-receive_id int not null,
+send_id uuid not null,
+receive_id uuid not null,
+flag_id uuid,
+extra text not null default '',
 content text not null,
 create_time timestamp not null,
-extend1 text,
-extend2 text,
-extend3 text
+read bool not null DEFAULT false
 );
 
 CREATE INDEX receive_id_message_index ON message(receive_id);
