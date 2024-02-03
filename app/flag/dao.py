@@ -4,6 +4,7 @@ from app.base_dao import Dao
 from app.base_typedef import point, LOCATION
 from app.flag.typedef import GetFlagByMap, CommentResp, UpdateFlag, FlagRegion, OpenFlag, \
     AddFlag, GetFlagByUser, FlagUpdateInfo, AddComment, DeleteComment, Flag, AppIlluminate
+from app.user.typedef import User
 
 
 class FlagDao(Dao):
@@ -147,10 +148,10 @@ class FlagDao(Dao):
         return self.execute(sql, flag_id=add.flag_id, user_id=user_id, content=add.content,
                             location=point(add.location), parent_id=add.parent_id, distance=distance)
 
-    def get_nickname_by_comment_id(self, user_id: UUID, flag_id: UUID, parent_id: int) -> Optional[str]:
+    def get_nickname_by_comment_id(self, user_id: UUID, flag_id: UUID, parent_id: int) -> Optional[User]:
         sql = ('with s1 as (select c.user_id from flag_comment c inner join flag f '
                f'on c.flag_id=f.id where (f.user_id=:user_id or f.{self.not_hide}) and f.id=:flag_id '
-               'and c.id=:parent_id and c.parent_id is null) select u.nickname from users u inner join s1 '
+               'and c.id=:parent_id and c.parent_id is null) select * from users u inner join s1 '
                'on u.id=s1.user_id')
         return self.execute(sql, user_id=user_id, flag_id=flag_id, parent_id=parent_id)
 

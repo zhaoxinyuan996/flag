@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from flask import g
 from pydantic import constr, confloat, conint
-from typing import Optional, List
+from typing import Optional, List, Any
 from app.base_typedef import LOCATION, Order, OrderField
 from app.constants import UserClass
 from app.user.controller import get_user_info
@@ -115,7 +115,7 @@ class GetFlagByUser(GetFlagByOrder):
 
 
 class GetFlagByFlag(Model):
-    id: UUID
+    id: Any
 
 
 class FlagType(Model):
