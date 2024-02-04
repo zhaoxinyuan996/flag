@@ -6,6 +6,8 @@ from app.message.typedef import AskNotice, Message
 
 
 class MessageDao(Dao):
+    expires = '-7days'
+
     def ask_notice(self, notice_id: int, user_class: int) -> List[AskNotice]:
         sql = ('select id, version, title, content, create_time from notice '
                'where id>:id and user_class<=:user_class order by id desc')
@@ -19,21 +21,18 @@ class MessageDao(Dao):
                      extra=extra, type_=type_, content=content)
 
     def latest_message_id(self, user_id: UUID) -> Optional[int]:
-        last = '-7days'
-        sql = 'select max(id) id from message where receive_id=:user_id and create_time>current_timestamp + :last'
-        return self.execute(sql, user_id=user_id, last=last)
+        sql = 'select max(id) id from message where receive_id=:user_id and create_time>current_timestamp + :expires'
+        return self.execute(sql, user_id=user_id, expires=self.expires)
 
     def receive_message(self, user_id: UUID,  id_: int) -> List[Message]:
-        last = '-7days'
         sql = ('with s1 as (update message set read=true where receive_id=:user_id and id>:id and '
-               '(not read or create_time>current_timestamp + :last) returning *)'
+               '(not read or create_time>current_timestamp + :expires) returning *)'
                'select * from s1 order by id desc')
-        return self.execute(sql, id=id_, user_id=user_id, last=last)
+        return self.execute(sql, id=id_, user_id=user_id, expires=self.expires)
 
     def clean_timeout_message(self):
-        last = '-7days'
-        sql = 'delete from message where read and create_time<current_timestamp + :last'
-        self.execute(sql, last=last)
+        sql = 'delete from message where read and create_time<current_timestamp + :expires'
+        self.execute(sql, expires=self.expires)
 
 
 dao: MessageDao = MessageDao()

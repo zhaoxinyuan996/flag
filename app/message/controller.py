@@ -13,7 +13,7 @@ bp = Blueprint(module_name, __name__, url_prefix=f'/api/{module_name}')
 
 
 def push_message(send_id: UUID, receive_id: UUID,
-                 type_: int, content: str = None, flag_id: UUID = None, extra: str = ''):
+                 type_: int, content: str, flag_id: UUID = None, extra: str = ''):
     mq_user_msg.put(pickle.dumps(UserMessage(send_id, receive_id, flag_id, type_, content, extra)))
 
 
