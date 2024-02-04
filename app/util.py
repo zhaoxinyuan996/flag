@@ -278,7 +278,7 @@ class StatisticsUtil:
                 if key == StatisticsType.like and del_users:
                     loop.extend((f"{key}_users = delete({key}_users, '{uuid}')" for uuid in del_users))
                 if key == StatisticsType.like and add_users:
-                    loop.extend((f"{key}_users ['{uuid}']=current_timestamp::text" for uuid in add_users))
+                    loop.extend((f"{key}_users ['{uuid}']=null" for uuid in add_users))
                 num_diff = len(add_users) - len(del_users)
                 if num_diff:
                     loop.append(f"{key}_num={key}_num+{num_diff} ")
