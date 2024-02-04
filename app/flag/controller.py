@@ -290,9 +290,9 @@ def add_fav(add_: FlagId):
     return resp(RespMsg.success)
 
 
+@bp.route('/delete-fav', methods=['post'])
 @args_parse(FlagId)
 @custom_jwt()
-@bp.route('/delete-fav', methods=['post'])
 def delete_fav(delete_: FlagId):
     """删除收藏"""
     user_id = g.user_id
