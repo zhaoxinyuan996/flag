@@ -28,9 +28,9 @@ password_pattern = re.compile(r'.*(?=.{6,16})(?=.*\d)(?=.*[A-Z])(?=.*[a-z]).*$')
 log = logging.getLogger(__name__)
 
 
-def get_user_info(refresh: Optional[User] = None) -> User:
+def get_user_info(refresh: Optional[User] = None, user_id: Optional[UUID] = None) -> User:
     # 加一层redis
-    user_id = g.user_id
+    user_id = user_id or g.user_id
     key = f'user-info-{user_id}'
     if (value := redis_cli.get(key)) and refresh is not None:
         return pickle.loads(value)
@@ -179,7 +179,8 @@ def follow_add(user: UserId):
     if not dao.exist(user.id):
         return resp(RespMsg.user_not_exist)
     dao.follow_add(user_id, user.id)
-    push_message(user_id, user.id, UserMessageType.follow)
+    content = f'{get_user_info(user_id=user.id).nickname} 关注了你'
+    push_message(user_id, user.id, UserMessageType.follow, content)
     return resp(RespMsg.success)
 
 
