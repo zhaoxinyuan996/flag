@@ -42,7 +42,8 @@ class FlagDao(Dao):
                             status=flag.status, ico_name=flag.ico_name)
 
     def get_flag_info(self, user_id: UUID, flag_id: UUID) -> Optional[Flag]:
-        sql = f'select {self.fields} from flag f where id=:flag_id and user_id=:user_id'
+        condition = 'and user_id=:user_id' if user_id else ''
+        sql = f'select {self.fields} from flag f where id=:flag_id {condition}'
         return self.execute(sql, user_id=user_id, flag_id=flag_id)
 
     def get_flag_by_flag(self, user_id: UUID, flag_id: UUID) -> Optional[OpenFlag]:
