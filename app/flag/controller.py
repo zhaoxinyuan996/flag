@@ -29,7 +29,7 @@ statistics_util = StatisticsUtil()
 #     location_code = json.loads(city_file.read())
 
 
-def get_flag_info(flag_id: UUID, refresh: Optional[Flag] = None) -> Flag:
+def get_flag_info(flag_id: UUID, refresh: Optional[Flag] = None, user_id: Optional[UUID] = None) -> Flag:
     # 目前flag表location字段不方便，所以这里先不动态修改缓存
     key = f'flag-info-{flag_id}'
     if (value := redis_cli.get(key)) and refresh is not None:
@@ -37,7 +37,7 @@ def get_flag_info(flag_id: UUID, refresh: Optional[Flag] = None) -> Flag:
     if refresh is not None:
         info: Flag = refresh
     else:
-        info: Flag = dao.get_flag_info(g.user_id, flag_id)
+        info: Flag = dao.get_flag_info(user_id, flag_id)
     if not info:
         raise AppError(RespMsg.flag_not_exist)
     redis_cli.set(key, pickle.dumps(info), ex=CacheTimeout.flag_info)
