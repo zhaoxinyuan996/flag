@@ -179,7 +179,7 @@ def follow_add(user: UserId):
     if not dao.exist(user.id):
         return resp(RespMsg.user_not_exist)
     dao.follow_add(user_id, user.id)
-    content = f'{get_user_info(user_id=user.id).nickname} 关注了你'
+    content = f'{get_user_info().nickname} 关注了你'
     push_message(user_id, user.id, UserMessageType.follow, content)
     return resp(RespMsg.success)
 

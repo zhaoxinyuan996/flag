@@ -283,7 +283,8 @@ class StatisticsUtil:
                 if num_diff:
                     loop.append(f"{key}_num={key}_num+{num_diff} ")
             if loop:
-                all_sql.append(f"update flag_statistics set {','.join(loop)} where flag_id='{flag_id}'")
+                all_sql.append(f"update flag_statistics set {','.join(loop)}, "
+                               f"update_time=current_timestamp where flag_id='{flag_id}'")
         self.statistics_cache.clear()
         return all_sql
 
