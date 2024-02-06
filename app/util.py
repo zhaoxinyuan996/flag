@@ -272,9 +272,8 @@ class StatisticsUtil:
             for key, tuples in kv.items():
                 # 剔除共有的user_id
                 del_users, add_users = tuples
-                reject: Set[UUID] = del_users & add_users
-                del_users ^= reject
-                add_users ^= reject
+                del_users: Set[UUID] = del_users.difference(add_users)
+                add_users: Set[UUID] = add_users.difference(del_users)
                 if key == StatisticsType.like and del_users:
                     loop.extend((f"{key}_users = delete({key}_users, '{uuid}')" for uuid in del_users))
                 if key == StatisticsType.like and add_users:
