@@ -134,13 +134,13 @@ def custom_jwt(
 
 
 def resp(msg: Any, code: int = 0, **kwargs):
+    if g.access_token:
+        kwargs['access_token'] = g.access_token
+
     if isinstance(msg, RespMessage):
         _msg = msg[g.language]
         code = msg.get('code', code)
         return jsonify({'msg': _msg, 'code': code, **kwargs})
-
-    if g.access_token:
-        return jsonify({'msg': msg, 'code': code, 'access_token': g.access_token, **kwargs})
 
     return jsonify({'msg': msg, 'code': code, **kwargs})
 
@@ -186,7 +186,7 @@ class JSONProvider(DefaultJSONProvider):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
         elif isinstance(obj, UUID):
             return str(obj)
-        raise TypeError('ignore type')
+        raise TypeError(f'illegal type: {obj}')
 
     def dumps(self, obj: Any, **kwargs: Any) -> str:
         return ujson.dumps(obj, default=self.default)
