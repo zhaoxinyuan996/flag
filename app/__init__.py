@@ -57,7 +57,7 @@ def init(_app: Flask):
         log.exception(e)
         # 优先截胡自定义声明的error_resp
         if _e := getattr(g, 'error_resp', None):
-            return resp(_e)
+            return resp(_e, code=-1)
         elif isinstance(e, ValidationError):
             return resp(RespMsg.params_error), getattr(e, 'code', e_code)
         elif isinstance(e, exc.IntegrityError):

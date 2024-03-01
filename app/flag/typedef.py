@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import g
 from pydantic import constr, confloat, conint
 from typing import Optional, List, Any
-from app.base_typedef import LOCATION, Order, OrderField
+from app.base_typedef import LOCATION, Order, OrderField, ICO_NAME
 from app.constants import UserClass
 from app.user.controller import get_user_info
 from app.util import Model
@@ -13,7 +13,6 @@ _TYPE = conint(ge=0, le=1)
 _STATUS = conint(ge=0, le=3)
 _FLAG_CONTENT = constr(max_length=300)
 _COMMENT_CONTENT = constr(max_length=100)
-ICO_NAME = constr(max_length=30)
 
 '''
 status字段是int值，状态保存为位
@@ -222,3 +221,7 @@ class AppIlluminate(Model):
     location: LOCATION
     flag_num: int
     update_time: datetime
+
+
+class ChooseIcoName(Model):
+    ico_name: ICO_NAME
