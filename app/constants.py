@@ -206,8 +206,16 @@ del _codes
 
 
 class AppError(Exception):
-    def __init__(self, msg: Union[RespMessage, str, None]):
-        self.msg = msg
+    msg = None
+
+    def __init__(self, msg: Union[RespMessage, str, None] = None):
+        if msg is not None:
+            self.msg = msg
+        super().__init__(self.msg)
+
+
+class EmojiNotSupport(AppError):
+    msg = '该emoji表情暂未支持'
 
 
 class DCSLockError(AppError):

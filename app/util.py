@@ -1,7 +1,6 @@
 """web的一些注入解析等小功能"""
 import os
 import logging
-import platform
 import time
 from datetime import datetime
 from functools import wraps
@@ -63,70 +62,27 @@ def refresh_user(user_id: UUID):
     mq_local.put(f'{user_id}|{remote_ip}')
 
 
-if platform.system().lower() != 'windows':
-    try:
-        # slave进程不会使用uwsgi全局锁
-        import uwsgi
-    except ModuleNotFoundError:
-        ...
-
-
-class ApiLock:
-    """uwsgi锁"""
-    def __init__(self, func_name: str):
-        self.func_name = func_name
-
-    if platform.system().lower() == 'windows':
-        _lock_mapping = {
-            'place': Lock(),
-        }
-
-        def __enter__(self):
-            self._lock_mapping[self.func_name].acquire()
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            self._lock_mapping[self.func_name].release()
-
-    else:
-        _lock_mapping = {
-            'place': 1,
-        }
-
-        def __enter__(self):
-            uwsgi.lock(self._lock_mapping[self.func_name])
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            uwsgi.unlock(self._lock_mapping[self.func_name])
-
-
-def api_lock(lock):
-    """uwsgi锁"""
+def dcs_lock(key: str, with_user: bool = True, ex: int = 5000, raise_: bool = True):
+    """
+    分布式锁
+    @:param key         分布式锁的key
+    @:param with_user   分布式锁是否区分用户
+    @:param ex          超时时间
+    @:param raise_      锁被占用是否抛错
+    """
     def f1(func: Callable):
         @wraps(func)
         def f2(*args, **kwargs):
-            with lock:
-                return func(*args, **kwargs)
-        return f2
-    return f1
-
-
-def dcs_lock(key: str, ex=5000, raise_: bool = True):
-    """分布式锁"""
-    def f1(func: Callable):
-        @wraps(func)
-        def f2(*args, **kwargs):
-            k = f'{key}-{g.user_id}'
-            # 锁被占用
-            # 抛错
-            if raise_:
-                if redis_cli.get(k):
+            k = f'{key}-{g.user_id}' if with_user else key
+            while redis_cli.set(k, nx=True, ex=ex) is None:
+                # 抛错
+                if raise_:
                     raise DCSLockError('操作过快')
-            # 等待
-            else:
-                while redis_cli.get(k):
+                # 等待
+                else:
                     time.sleep(0.1)
+                    continue
             try:
-                redis_cli.set(k, ex=ex)
                 return func(*args, **kwargs)
             finally:
                 redis_cli.delete(k)
@@ -178,13 +134,13 @@ def custom_jwt(
 
 
 def resp(msg: Any, code: int = 0, **kwargs):
+    if g.access_token:
+        kwargs['access_token'] = g.access_token
+
     if isinstance(msg, RespMessage):
         _msg = msg[g.language]
         code = msg.get('code', code)
         return jsonify({'msg': _msg, 'code': code, **kwargs})
-
-    if g.access_token:
-        return jsonify({'msg': msg, 'code': code, 'access_token': g.access_token, **kwargs})
 
     return jsonify({'msg': msg, 'code': code, **kwargs})
 
@@ -230,7 +186,7 @@ class JSONProvider(DefaultJSONProvider):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
         elif isinstance(obj, UUID):
             return str(obj)
-        raise TypeError('ignore type')
+        raise TypeError(f'illegal type: {obj}')
 
     def dumps(self, obj: Any, **kwargs: Any) -> str:
         return ujson.dumps(obj, default=self.default)
@@ -272,9 +228,8 @@ class StatisticsUtil:
             for key, tuples in kv.items():
                 # 剔除共有的user_id
                 del_users, add_users = tuples
-                reject: Set[UUID] = del_users & add_users
-                del_users ^= reject
-                add_users ^= reject
+                del_users: Set[UUID] = del_users.difference(add_users)
+                add_users: Set[UUID] = add_users.difference(del_users)
                 if key == StatisticsType.like and del_users:
                     loop.extend((f"{key}_users = delete({key}_users, '{uuid}')" for uuid in del_users))
                 if key == StatisticsType.like and add_users:
