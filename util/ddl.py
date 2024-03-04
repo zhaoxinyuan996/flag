@@ -213,3 +213,23 @@ select 0 code, '国外' city, 'SRID=4326;point (0 0)' location, count(f.id) flag
 from flag f 
 left join s1 on ST_Contains(s1.fence,f.location)  group by s1.code, s1.name having s1.code is null and s1.name is null;
 '''
+
+# 标记点赞表
+'''
+create table flag_like (
+flag_id UUID not null,
+user_id UUID not null,
+update_time timestamp not null,
+PRIMARY KEY (flag_id, user_id)
+)
+'''
+
+# 评论点赞表
+'''
+create table flag_comment_like (
+comment_id int not null,
+user_id UUID not null,
+update_time timestamp not null,
+PRIMARY KEY (comment_id, user_id)
+)
+'''

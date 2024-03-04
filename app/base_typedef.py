@@ -1,6 +1,11 @@
+import os
 from enum import Enum
+
+from flask import g
+
+from app.constants import EmojiNotSupport
 from app.util import Model
-from pydantic import AnyUrl, confloat
+from pydantic import AnyUrl, confloat, AfterValidator
 from typing import Tuple, Annotated, Optional
 from pydantic_core.core_schema import SerializerFunctionWrapHandler
 from pydantic.functional_serializers import PlainSerializer
@@ -37,7 +42,22 @@ def url_wrap(url: AnyUrl, nxt: SerializerFunctionWrapHandler) -> str:
     return str(url)
 
 
+with open(os.path.join(os.path.dirname(__file__), 'flag', 'emoji-pool.txt'), encoding='utf-8') as f:
+    emoji_pool = set(f.read().split('\n'))
+
+
+def ico_name_wrap(ico_name: str) -> str:
+    g.error_resp = '该emoji表情暂不支持'
+    code = ico_name.encode('unicode_escape').replace(b'\U', b'\u').split(b'\u')[1:]
+    code = '-'.join((hex(int(i, 16))[2:] for i in code))
+    if code in emoji_pool:
+        del g.error_resp
+        return ico_name
+    raise EmojiNotSupport()
+
+
 URL = Annotated[AnyUrl, PlainSerializer(url_wrap)]
+ICO_NAME = Annotated[str, AfterValidator(ico_name_wrap)]
 LOCATION = Tuple[confloat(ge=-90, le=90), confloat(ge=-180, le=180)]
 
 
@@ -51,9 +71,9 @@ if __name__ == '__main__':
 
 
     class A(BaseModel):
-        location: LOCATION
+        ico_name: ICO_NAME
 
 
-    a = A(location=[1, 2])
+    a = A(ico_name='1f004')
 
-    print(A(location=[1, 2]).model_dump())
+    print(a)

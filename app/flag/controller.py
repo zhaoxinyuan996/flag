@@ -12,7 +12,8 @@ from flask import Blueprint, request, g
 from app.constants import flag_picture_size, FileType, RespMsg, CacheTimeout, \
     StatisticsType, AppError, UserMessageType
 from app.flag.typedef import AddFlag, UpdateFlag, SetFlagType, \
-    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag
+    AddComment, FlagId, GetFlagByMap, GetFlagByFlag, GetFlagByUser, CommentId, FlagSinglePictureDone, Flag, \
+    ChooseIcoName
 from app.user.controller import get_user_info
 from app.util import args_parse, resp, custom_jwt, get_request_list, PictureStorageSet, PictureStorage, StatisticsUtil
 from util.database import db, redis_cli
@@ -414,3 +415,10 @@ def app_illuminate():
         illuminate = [i.model_dump() for i in dao.app_illuminate()]
         redis_cli.set(key, pickle.dumps(illuminate), ex=CacheTimeout.app_illuminate)
     return resp(illuminate)
+
+
+@bp.route('/choose-ico-name', methods=['post'])
+@custom_jwt()
+def choose_ico_name():
+    ChooseIcoName(ico_name=request.json['ico_name'])
+    return resp(RespMsg.success)
