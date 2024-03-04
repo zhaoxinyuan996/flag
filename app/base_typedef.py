@@ -48,11 +48,11 @@ with open(os.path.join(os.path.dirname(__file__), 'flag', 'emoji-pool.txt'), enc
 
 def ico_name_wrap(ico_name: str) -> str:
     g.error_resp = '该emoji表情暂不支持'
-    zones = ico_name.encode('unicode_escape').replace(b'\U', b'\u').split(b'\u')[1:]
-    ico_name = '-'.join((hex(int(i, 16))[2:] for i in zones))
-    if ico_name in emoji_pool:
+    code = ico_name.encode('unicode_escape').replace(b'\U', b'\u').split(b'\u')[1:]
+    code = '-'.join((hex(int(i, 16))[2:] for i in code))
+    if code in emoji_pool:
         del g.error_resp
-        return f'{ico_name}.png'
+        return ico_name
     raise EmojiNotSupport()
 
 
