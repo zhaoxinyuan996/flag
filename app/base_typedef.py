@@ -57,7 +57,8 @@ def ico_name_wrap(ico_name: str) -> str:
 
 
 URL = Annotated[AnyUrl, PlainSerializer(url_wrap)]
-ICO_NAME = Annotated[str, AfterValidator(ico_name_wrap)]
+ICO_NAME = str
+CHECK_ICO_NAME = Annotated[str, AfterValidator(ico_name_wrap)]
 LOCATION = Tuple[confloat(ge=-90, le=90), confloat(ge=-180, le=180)]
 
 
