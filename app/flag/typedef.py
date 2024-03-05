@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from flask import g
 from pydantic import constr, confloat, conint
 from typing import Optional, List, Any
-from app.base_typedef import LOCATION, Order, OrderField, ICO_NAME
+from app.base_typedef import LOCATION, Order, OrderField, ICO_NAME, CHECK_ICO_NAME
 from app.constants import UserClass
 from app.user.controller import get_user_info
 from app.util import Model
@@ -66,7 +66,7 @@ class AddFlag(Model):
     type: _TYPE
     status: _STATUS
     pictures: List[str]
-    ico_name: ICO_NAME
+    ico_name: CHECK_ICO_NAME
     temp: bool
 
     @property
@@ -90,7 +90,7 @@ class UpdateFlag(Model):
     type: _TYPE
     status: _STATUS
     pictures: List[str]
-    ico_name: ICO_NAME
+    ico_name: CHECK_ICO_NAME
 
 
 class FlagUpdateInfo(Model):
@@ -224,4 +224,4 @@ class AppIlluminate(Model):
 
 
 class ChooseIcoName(Model):
-    ico_name: ICO_NAME
+    ico_name: CHECK_ICO_NAME

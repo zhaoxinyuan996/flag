@@ -46,4 +46,10 @@ up_oss: UpOss = UpOss()
 
 
 if __name__ == '__main__':
-    print(1)
+    emoji = up_oss.client.getlist('/emoji-ms-64')
+    print(emoji)
+    # import os
+    # folder = '/emoji-ms-64/'
+    # for i in os.listdir(r'C:\Users\11782\Desktop\fluentui-emoji-main\64'):
+    #     with open(r'C:\Users\11782\Desktop\fluentui-emoji-main\64' + '\\' + i, 'rb') as f:
+    #         up_oss.client.put(folder + i, f.read())
